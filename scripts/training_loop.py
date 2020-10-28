@@ -10,9 +10,7 @@ from social_utils import *
 import yaml
 from models import *
 import numpy as np
-
 parser = argparse.ArgumentParser(description='PECNet')
-
 parser.add_argument('--num_workers', '-nw', type=int, default=0)
 parser.add_argument('--gpu_index', '-gi', type=int, default=0)
 parser.add_argument('--config_filename', '-cfn', type=str, default='optimal.yaml')
@@ -20,7 +18,6 @@ parser.add_argument('--save_file', '-sf', type=str, default='PECNET_social_model
 parser.add_argument('--verbose', '-v', action='store_true')
 
 args = parser.parse_args()
-
 dtype = torch.float64
 torch.set_default_dtype(dtype)
 device = torch.device('cuda', index=args.gpu_index) if torch.cuda.is_available() else torch.device('cpu')
@@ -37,23 +34,24 @@ file.close()
 print(hyper_params)
 
 def train(train_dataset):
-
+	dataloader = data.DataLoader(
+			train_dataset, batch_size=128, shuffle=True, num_workers=0)
 	model.train()
 	train_loss = 0
 	total_rcl, total_kld, total_adl = 0, 0, 0
 	criterion = nn.MSELoss()
 
-	for i, (traj, mask, initial_pos) in enumerate(zip(train_dataset.trajectory_batches, train_dataset.mask_batches, train_dataset.initial_pos_batches)):
-		traj, mask, initial_pos = torch.DoubleTensor(traj).to(device), torch.DoubleTensor(mask).to(device), torch.DoubleTensor(initial_pos).to(device)
-		x = traj[:, :hyper_params['past_length'], :]
-		y = traj[:, hyper_params['past_length']:, :]
-
+	for i, traj in enumerate(dataloader):
+		traj = torch.DoubleTensor(traj).to(device)
+		traj = traj - traj[:,:1,:]
+		x = traj[:, :hyper_params['past_length'], 1:]
+		y = traj[:, hyper_params['past_length']:, 1:]
 		x = x.contiguous().view(-1, x.shape[1]*x.shape[2]) # (x,y,x,y ... )
 		x = x.to(device)
 		dest = y[:, -1, :].to(device)
 		future = y[:, :-1, :].contiguous().view(y.size(0),-1).to(device)
 
-		dest_recon, mu, var, interpolated_future = model.forward(x, initial_pos, dest=dest, mask=mask, device=device)
+		dest_recon, mu, var, interpolated_future = model.forward(x, dest=dest, device=device)
 
 		optimizer.zero_grad()
 		rcl, kld, adl = calculate_loss(dest, dest_recon, mu, var, criterion, future, interpolated_future)
@@ -74,16 +72,19 @@ def test(test_dataset, best_of_n = 1):
 
 	model.eval()
 	assert best_of_n >= 1 and type(best_of_n) == int
-
+	dataloader = data.DataLoader(
+			test_dataset, batch_size=128, shuffle=True, num_workers=0)
+	
 	with torch.no_grad():
-		for i, (traj, mask, initial_pos) in enumerate(zip(test_dataset.trajectory_batches, test_dataset.mask_batches, test_dataset.initial_pos_batches)):
-			traj, mask, initial_pos = torch.DoubleTensor(traj).to(device), torch.DoubleTensor(mask).to(device), torch.DoubleTensor(initial_pos).to(device)
-			x = traj[:, :hyper_params['past_length'], :]
-			y = traj[:, hyper_params['past_length']:, :]
+		for i, traj in enumerate(dataloader):
+			traj = torch.DoubleTensor(traj).to(device)
+			traj = traj - traj[:,:1,:]
+			x = traj[:, :hyper_params['past_length'], 1:] 
+			y = traj[:, hyper_params['past_length']:, 1:] 
 			y = y.cpu().numpy()
 
 			# reshape the data
-			x = x.view(-1, x.shape[1]*x.shape[2])
+			x = x.contiguous().view(-1, x.shape[1]*x.shape[2])
 			x = x.to(device)
 
 			dest = y[:, -1, :]
@@ -91,7 +92,7 @@ def test(test_dataset, best_of_n = 1):
 			all_guesses = []
 			for _ in range(best_of_n):
 
-				dest_recon = model.forward(x, initial_pos, device=device)
+				dest_recon = model.forward(x, device=device)
 				dest_recon = dest_recon.cpu().numpy()
 				all_guesses.append(dest_recon)
 
@@ -114,7 +115,7 @@ def test(test_dataset, best_of_n = 1):
 			best_guess_dest = torch.DoubleTensor(best_guess_dest).to(device)
 
 			# using the best guess for interpolation
-			interpolated_future = model.predict(x, best_guess_dest, mask, initial_pos)
+			interpolated_future = model.predict(x, best_guess_dest)
 			interpolated_future = interpolated_future.cpu().numpy()
 			best_guess_dest = best_guess_dest.cpu().numpy()
 
@@ -137,17 +138,8 @@ model = PECNet(hyper_params["enc_past_size"], hyper_params["enc_dest_size"], hyp
 model = model.double().to(device)
 optimizer = optim.Adam(model.parameters(), lr=  hyper_params["learning_rate"])
 
-train_dataset = SocialDataset(set_name="train", b_size=hyper_params["train_b_size"], t_tresh=hyper_params["time_thresh"], d_tresh=hyper_params["dist_thresh"], verbose=args.verbose)
-test_dataset = SocialDataset(set_name="test", b_size=hyper_params["test_b_size"], t_tresh=hyper_params["time_thresh"], d_tresh=hyper_params["dist_thresh"], verbose=args.verbose)
-
-# shift origin and scale data
-for traj in train_dataset.trajectory_batches:
-	traj -= traj[:, :1, :]
-	traj *= hyper_params["data_scale"]
-for traj in test_dataset.trajectory_batches:
-	traj -= traj[:, :1, :]
-	traj *= hyper_params["data_scale"]
-
+train_dataset = SocialDataset(set_name="train", b_size=32, t_tresh=hyper_params["time_thresh"], d_tresh=hyper_params["dist_thresh"], verbose=args.verbose)
+test_dataset = SocialDataset(set_name="test", b_size=32, t_tresh=hyper_params["time_thresh"], d_tresh=hyper_params["dist_thresh"], verbose=args.verbose)
 
 best_test_loss = 50 # start saving after this threshold
 best_endpoint_loss = 50
