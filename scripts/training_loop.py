@@ -9,8 +9,8 @@ import yaml
 import numpy as np
 from torch.utils.data import DataLoader
 
-from utils.models import *
-from utils.social_utils import *
+from utils.models import PECNet
+from utils.social_utils import SocialDataset
 from utils.train_engine import train
 from utils.test_engine import test
 
