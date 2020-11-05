@@ -1,11 +1,14 @@
-def test(test_dataset, best_of_n = 1):
+import torch
+import numpy as np
+
+def test(test_dataset, model, device, hyper_params, best_of_n = 1):
 	'''Evalutes test metrics. Assumes all test data is in one batch'''
 
 	model.eval()
 	assert best_of_n >= 1 and type(best_of_n) == int
 
 	with torch.no_grad():
-		for i, (traj, mask, initial_pos) in enumerate(zip(test_dataset.trajectory_batches, test_dataset.mask_batches, test_dataset.initial_pos_batches)):
+		for _, (traj, mask, initial_pos) in enumerate(zip(test_dataset.trajectory_batches, test_dataset.mask_batches, test_dataset.initial_pos_batches)):
 			traj, mask, initial_pos = torch.DoubleTensor(traj).to(device), torch.DoubleTensor(mask).to(device), torch.DoubleTensor(initial_pos).to(device)
 			x = traj[:, :hyper_params['past_length'], :]
 			y = traj[:, hyper_params['past_length']:, :]
