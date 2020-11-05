@@ -1,11 +1,16 @@
-def train(train_dataset):
+import torch
+import torch.nn as nn
+
+from utils.social_utils import calculate_loss
+
+def train(train_dataset, model, device, hyper_params, optimizer):
 
 	model.train()
 	train_loss = 0
 	total_rcl, total_kld, total_adl = 0, 0, 0
 	criterion = nn.MSELoss()
 
-	for i, (traj, mask, initial_pos) in enumerate(zip(train_dataset.trajectory_batches, train_dataset.mask_batches, train_dataset.initial_pos_batches)):
+	for _, (traj, mask, initial_pos) in enumerate(zip(train_dataset.trajectory_batches, train_dataset.mask_batches, train_dataset.initial_pos_batches)):
 		traj, mask, initial_pos = torch.DoubleTensor(traj).to(device), torch.DoubleTensor(mask).to(device), torch.DoubleTensor(initial_pos).to(device)
 		x = traj[:, :hyper_params['past_length'], :]
 		y = traj[:, hyper_params['past_length']:, :]
