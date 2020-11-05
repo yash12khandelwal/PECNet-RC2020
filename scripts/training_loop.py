@@ -60,8 +60,8 @@ best_endpoint_loss = 50
 N = hyper_params["n_values"]
 
 for e in range(hyper_params['num_epochs']):
-	train_loss, rcl, kld, adl = train(train_dataset)
-	test_loss, final_point_loss_best, final_point_loss_avg = test(test_dataset, best_of_n = N)
+	train_loss, rcl, kld, adl = train(train_dataset, model, device, hyper_params, optimizer)
+	test_loss, final_point_loss_best, final_point_loss_avg = test(test_dataset, model, device, hyper_params, best_of_n = N)
 
 
 	if best_test_loss > test_loss:
