@@ -13,7 +13,7 @@ from utils.models import PECNet
 from utils.social_utils import SocialDataset, set_seed
 from utils.train_engine import train_engine
 from utils.test_engine import test_engine
-from visualization.wandb_utils import init_wandb
+from visualization.wandb_utils import init_wandb, log_losses
 
 if __name__ == '__main__':
 
@@ -52,6 +52,7 @@ if __name__ == '__main__':
 
 	model = PECNet(hyperparams['enc_past_size'], hyperparams['enc_dest_size'], hyperparams['enc_latent_size'], hyperparams['dec_size'], hyperparams['predictor_hidden_size'], hyperparams['non_local_theta_size'], hyperparams['non_local_phi_size'], hyperparams['non_local_g_size'], hyperparams['fdim'], hyperparams['zdim'], hyperparams['nonlocal_pools'], hyperparams['non_local_dim'], hyperparams['sigma'], hyperparams['past_length'], hyperparams['future_length'], args.verbose)
 	model = model.double().to(device)
+
 	optimizer = optim.Adam(model.parameters(), lr=  hyperparams['learning_rate'])
 
 	train_dataset = SocialDataset(set_name='train', b_size=hyperparams['train_b_size'], t_tresh=hyperparams['time_thresh'], d_tresh=hyperparams['dist_thresh'], verbose=args.verbose)
@@ -71,9 +72,8 @@ if __name__ == '__main__':
 	N = hyperparams['n_values']
 
 	for e in range(hyperparams['num_epochs']):
-		train_loss, rcl, kld, adl = train_engine(train_dataset, model, device, hyperparams, optimizer)
+		train_loss_dict = train_engine(train_dataset, model, device, hyperparams, optimizer)
 		test_loss, final_point_loss_best, final_point_loss_avg = test_engine(test_dataset, model, device, hyperparams, best_of_n = N)
-
 
 		if best_test_loss > test_loss:
 			print('Epoch: ', e)
@@ -91,10 +91,12 @@ if __name__ == '__main__':
 		if final_point_loss_best < best_endpoint_loss:
 			best_endpoint_loss = final_point_loss_best
 
-		print('Train Loss', train_loss)
-		print('RCL', rcl)
-		print('KLD', kld)
-		print('ADL', adl)
+		print('Train Loss', train_loss_dict["total_train_loss"])
+		print('RCL', train_loss_dict["total_rcl_loss"])
+		print('KLD', train_loss_dict["total_kld_loss"])
+		print('ADL', train_loss_dict["total_adl_loss"])
+		if args.wandb:
+			log_losses(losses=train_loss_dict, mode='train', epoch=e)
 		print('Test ADE', test_loss)
 		print('Test Average FDE (Across  all samples)', final_point_loss_avg)
 		print('Test Min FDE', final_point_loss_best)
