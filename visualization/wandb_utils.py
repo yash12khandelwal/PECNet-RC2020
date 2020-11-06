@@ -13,3 +13,28 @@ def init_wandb(cfg: dict, args=None) -> None:
     )
     if args:
         wandb.config.update(args)
+
+def log_losses(losses: dict, mode: str, epoch: int):
+    """
+    Log the losses
+    Args:
+        losses (dict): all the losses should be of type float
+        mode (str): 'train' or 'val'
+        epoch (int): epoch number
+    """
+
+    for k, v in losses.items():
+        wandb.log({f"{mode}/{k}": v}, step=epoch)
+
+
+def log_metrics(metrics: dict, mode: str, epoch: int):
+    """
+    Log the metrics
+    Args:
+        metrics (dict): all the metrics should be of type float
+        mode (str): 'train' or 'val'
+        epoch (int): epoch number
+    """
+
+    for k, v in metrics.items():
+        wandb.log({f"{mode}/{k}": v}, step=epoch)
