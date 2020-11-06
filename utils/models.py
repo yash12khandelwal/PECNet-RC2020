@@ -12,7 +12,7 @@ import numpy as np
 import yaml
 
 '''MLP model'''
-class MLP(nn.Module):
+class MLP(nn.Module):  # This is used for creating a multilayer full connected layer
     def __init__(self, input_dim, output_dim, hidden_size=(1024, 512), activation='relu', discrim=False, dropout=-1):
         super(MLP, self).__init__()
         dims = []
@@ -42,7 +42,7 @@ class MLP(nn.Module):
                 x = self.sigmoid(x)
         return x
 
-class PECNet(nn.Module):
+class PECNet(nn.Module): # This is the main model which is executed
 
     def __init__(self, enc_past_size, enc_dest_size, enc_latent_size, dec_size, predictor_size, non_local_theta_size, non_local_phi_size, non_local_g_size, fdim, zdim, nonlocal_pools, non_local_dim, sigma, past_length, future_length, verbose):
         '''
@@ -55,9 +55,9 @@ class PECNet(nn.Module):
         '''
         super(PECNet, self).__init__()
 
-        self.zdim = zdim
-        self.nonlocal_pools = nonlocal_pools
-        self.sigma = sigma
+        self.zdim = zdim   # Dimension of the latent variable
+        self.nonlocal_pools = nonlocal_pools  
+        self.sigma = sigma  # For testing the latent variable is sampled as mu=0 and variance=sigma
 
         # takes in the past
         self.encoder_past = MLP(input_dim = past_length*2, output_dim = fdim, hidden_size=enc_past_size)
@@ -68,27 +68,29 @@ class PECNet(nn.Module):
 
         self.decoder = MLP(input_dim = fdim + zdim, output_dim = 2, hidden_size=dec_size)
 
+        # These 3 layers are used to establish social pooling among vehicles
         self.non_local_theta = MLP(input_dim = 2*fdim + 2, output_dim = non_local_dim, hidden_size=non_local_theta_size)
         self.non_local_phi = MLP(input_dim = 2*fdim + 2, output_dim = non_local_dim, hidden_size=non_local_phi_size)
         self.non_local_g = MLP(input_dim = 2*fdim + 2, output_dim = 2*fdim + 2, hidden_size=non_local_g_size)
 
+        # This layer is used to finally make the prediction
         self.predictor = MLP(input_dim = 2*fdim + 2, output_dim = 2*(future_length-1), hidden_size=predictor_size)
 
         architecture = lambda net: [l.in_features for l in net.layers] + [net.layers[-1].out_features]
 
         if verbose:
-            print("Past Encoder architecture : {}".format(architecture(self.encoder_past)))
-            print("Dest Encoder architecture : {}".format(architecture(self.encoder_dest)))
-            print("Latent Encoder architecture : {}".format(architecture(self.encoder_latent)))
-            print("Decoder architecture : {}".format(architecture(self.decoder)))
-            print("Predictor architecture : {}".format(architecture(self.predictor)))
+            print(f'Past Encoder architecture : {architecture(self.encoder_past)}')
+            print(f'Dest Encoder architecture : {architecture(self.encoder_dest)}')
+            print(f'Latent Encoder architecture : {architecture(self.encoder_latent)}')
+            print(f'Decoder architecture : {architecture(self.decoder)}')
+            print(f'Predictor architecture : {architecture(self.predictor)}')
 
-            print("Non Local Theta architecture : {}".format(architecture(self.non_local_theta)))
-            print("Non Local Phi architecture : {}".format(architecture(self.non_local_phi)))
-            print("Non Local g architecture : {}".format(architecture(self.non_local_g)))
+            print(f'Non Local Theta architecture : {architecture(self.non_local_theta)}')
+            print(f'Non Local Phi architecture : {architecture(self.non_local_phi)}')
+            print(f'Non Local g architecture : {architecture(self.non_local_g)}')
 
     def non_local_social_pooling(self, feat, mask):
-
+        # Social pooling layer
         # N,C
         theta_x = self.non_local_theta(feat)
 
@@ -96,9 +98,9 @@ class PECNet(nn.Module):
         phi_x = self.non_local_phi(feat).transpose(1,0)
 
         # f_ij = (theta_i)^T(phi_j), (N,N)
-        f = torch.matmul(theta_x, phi_x)
+        f = torch.matmul(theta_x, phi_x) #(N,64)X(64,N)
 
-        # f_weights_i =  exp(f_ij)/(\sum_{j=1}^N exp(f_ij))
+        # f_weights_ij =  exp(f_ij)/(\sum_{j=1}^N exp(f_ij))
         f_weights = F.softmax(f, dim = -1)
 
         # setting weights of non neighbours to zero
@@ -107,7 +109,7 @@ class PECNet(nn.Module):
         # rescaling row weights to 1
         f_weights = F.normalize(f_weights, p=1, dim=1)
 
-        # ith row of all_pooled_f = \sum_{j=1}^N f_weights_i_j * g_row_j
+        # ith row of all_pooled_f = \sum_{j=1}^N f_weights_ij * g_row_j
         pooled_f = torch.matmul(f_weights, self.non_local_g(feat))
 
         return pooled_f + feat
@@ -118,7 +120,8 @@ class PECNet(nn.Module):
         # assert model.training
         assert self.training ^ (dest is None)
         assert self.training ^ (mask is None)
-
+        # Batch is customarily generated
+        # x is of dim (N, path_length*2)
         # encode
         ftraj = self.encoder_past(x)
 
@@ -149,7 +152,7 @@ class PECNet(nn.Module):
         if self.training:
             # prediction in training, no best selection
             generated_dest_features = self.encoder_dest(generated_dest)
-
+            # ftraj contains history information, generated_dest_features is the latent encoding and intial_pos is the current posision of all the vehicles
             prediction_features = torch.cat((ftraj, generated_dest_features, initial_pos), dim = 1)
 
             for i in range(self.nonlocal_pools):

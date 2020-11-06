@@ -1,177 +1,110 @@
+import sys
+sys.path.append('../')
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-import sys
-from torch.utils.data import DataLoader
 import argparse
-sys.path.append("../utils/")
-from social_utils import *
 import yaml
-from models import *
 import numpy as np
-parser = argparse.ArgumentParser(description='PECNet')
-parser.add_argument('--num_workers', '-nw', type=int, default=0)
-parser.add_argument('--gpu_index', '-gi', type=int, default=0)
-parser.add_argument('--config_filename', '-cfn', type=str, default='optimal.yaml')
-parser.add_argument('--save_file', '-sf', type=str, default='PECNET_social_model.pt')
-parser.add_argument('--verbose', '-v', action='store_true')
+from torch.utils.data import DataLoader
 
-args = parser.parse_args()
-dtype = torch.float64
-torch.set_default_dtype(dtype)
-device = torch.device('cuda', index=args.gpu_index) if torch.cuda.is_available() else torch.device('cpu')
-if torch.cuda.is_available():
-	torch.cuda.set_device(args.gpu_index)
-print(device)
+from utils.models import PECNet
+from utils.social_utils import SocialDataset, set_seed
+from utils.train_engine import train_engine
+from utils.test_engine import test_engine
+from visualization.wandb_utils import init_wandb, log_losses, save_model_wandb, log_metrics
 
-with open("../config/" + args.config_filename, 'r') as file:
-	try:
-		hyper_params = yaml.load(file, Loader = yaml.FullLoader)
-	except:
-		hyper_params = yaml.load(file)
-file.close()
-print(hyper_params)
+if __name__ == '__main__':
 
-def train(train_dataset):
-	dataloader = data.DataLoader(
-			train_dataset, batch_size=128, shuffle=True, num_workers=0)
-	model.train()
-	train_loss = 0
-	total_rcl, total_kld, total_adl = 0, 0, 0
-	criterion = nn.MSELoss()
+	parser = argparse.ArgumentParser(description='PECNet')
+	parser.add_argument('--num_workers', '-nw', type=int, default=0)
+	parser.add_argument('--gpu_index', '-gi', type=int, default=0)
+	parser.add_argument('--config_filename', '-cfn', type=str, default='optimal.yaml')
+	parser.add_argument('--version', '-v', type=str, default='PECNET_social_model')
+	parser.add_argument('--verbose', action='store_true')
+	parser.add_argument('-s', '--seed', default=42, help='Random seed')
+	parser.add_argument('-w', '--wandb', action='store_true', help='Log to wandb or not')
+	args = parser.parse_args()
 
-	for i, traj in enumerate(dataloader):
-		traj = torch.DoubleTensor(traj).to(device)
-		traj = traj - traj[:,:1,:]
-		x = traj[:, :hyper_params['past_length'], 1:]
-		y = traj[:, hyper_params['past_length']:, 1:]
-		x = x.contiguous().view(-1, x.shape[1]*x.shape[2]) # (x,y,x,y ... )
-		x = x.to(device)
-		dest = y[:, -1, :].to(device)
-		future = y[:, :-1, :].contiguous().view(y.size(0),-1).to(device)
-
-		dest_recon, mu, var, interpolated_future = model.forward(x, dest=dest, device=device)
-
-		optimizer.zero_grad()
-		rcl, kld, adl = calculate_loss(dest, dest_recon, mu, var, criterion, future, interpolated_future)
-		loss = rcl + kld*hyper_params["kld_reg"] + adl*hyper_params["adl_reg"]
-		loss.backward()
-
-		train_loss += loss.item()
-		total_rcl += rcl.item()
-		total_kld += kld.item()
-		total_adl += adl.item()
-		optimizer.step()
-
-	return train_loss, total_rcl, total_kld, total_adl
-
-
-def test(test_dataset, best_of_n = 1):
-	'''Evalutes test metrics. Assumes all test data is in one batch'''
-
-	model.eval()
-	assert best_of_n >= 1 and type(best_of_n) == int
-	dataloader = data.DataLoader(
-			test_dataset, batch_size=128, shuffle=True, num_workers=0)
+	# setting seed system wide for proper reproducibility
+	set_seed(args.seed)
 	
-	with torch.no_grad():
-		for i, traj in enumerate(dataloader):
-			traj = torch.DoubleTensor(traj).to(device)
-			traj = traj - traj[:,:1,:]
-			x = traj[:, :hyper_params['past_length'], 1:] 
-			y = traj[:, hyper_params['past_length']:, 1:] 
-			y = y.cpu().numpy()
+	torch.set_default_dtype(torch.float64)
+	
+	# set device
+	device = torch.device('cuda', index=args.gpu_index) if torch.cuda.is_available() else torch.device('cpu')
+	if torch.cuda.is_available():
+		torch.cuda.set_device(args.gpu_index)
+	print(f'Using {device} device')
 
-			# reshape the data
-			x = x.contiguous().view(-1, x.shape[1]*x.shape[2])
-			x = x.to(device)
+	# load hyperparams from config file and update the dict
+	with open('../config/' + args.config_filename, 'r') as file:
+		try:
+			hyperparams = yaml.load(file, Loader = yaml.FullLoader)
+		except:
+			hyperparams = yaml.load(file)
+	file.close()
+	print(hyperparams)
 
-			dest = y[:, -1, :]
-			all_l2_errors_dest = []
-			all_guesses = []
-			for _ in range(best_of_n):
+	# initialize model
+	model = PECNet(hyperparams['enc_past_size'], hyperparams['enc_dest_size'], hyperparams['enc_latent_size'], hyperparams['dec_size'], hyperparams['predictor_hidden_size'], hyperparams['non_local_theta_size'], hyperparams['non_local_phi_size'], hyperparams['non_local_g_size'], hyperparams['fdim'], hyperparams['zdim'], hyperparams['nonlocal_pools'], hyperparams['non_local_dim'], hyperparams['sigma'], hyperparams['past_length'], hyperparams['future_length'], args.verbose)
+	model = model.double().to(device)
 
-				dest_recon = model.forward(x, device=device)
-				dest_recon = dest_recon.cpu().numpy()
-				all_guesses.append(dest_recon)
+	# initailize wandb, save the gradients and model information to wandb
+	if args.wandb:
+		init_wandb(hyperparams.copy(), model, args)
 
-				l2error_sample = np.linalg.norm(dest_recon - dest, axis = 1)
-				all_l2_errors_dest.append(l2error_sample)
+	# initialize optimizer
+	optimizer = optim.Adam(model.parameters(), lr=hyperparams['learning_rate'])
 
-			all_l2_errors_dest = np.array(all_l2_errors_dest)
-			all_guesses = np.array(all_guesses)
-			# average error
-			l2error_avg_dest = np.mean(all_l2_errors_dest)
+	# initialize dataloaders
+	train_dataset = SocialDataset(set_name='train', b_size=hyperparams['train_b_size'], t_tresh=hyperparams['time_thresh'], d_tresh=hyperparams['dist_thresh'], verbose=args.verbose)
+	test_dataset = SocialDataset(set_name='test', b_size=hyperparams['test_b_size'], t_tresh=hyperparams['time_thresh'], d_tresh=hyperparams['dist_thresh'], verbose=args.verbose)
 
-			# choosing the best guess
-			indices = np.argmin(all_l2_errors_dest, axis = 0)
+	# shift origin and scale data
+	for traj in train_dataset.trajectory_batches:
+		traj -= traj[:, :1, :]
+		traj *= hyperparams['data_scale']
+	for traj in test_dataset.trajectory_batches:
+		traj -= traj[:, :1, :]
+		traj *= hyperparams['data_scale']
 
-			best_guess_dest = all_guesses[indices,np.arange(x.shape[0]),  :]
+	best_test_loss = 50 # start saving after this threshold
+	best_endpoint_loss = 50
+	N = hyperparams['n_values']
 
-			# taking the minimum error out of all guess
-			l2error_dest = np.mean(np.min(all_l2_errors_dest, axis = 0))
+	for e in range(hyperparams['num_epochs']):
+		train_loss_dict = train_engine(train_dataset, model, device, hyperparams, optimizer)
+		test_error = test_engine(test_dataset, model, device, hyperparams, best_of_n = N)
 
-			best_guess_dest = torch.DoubleTensor(best_guess_dest).to(device)
+		if test_error["l2error_overall"] < best_test_loss:
+			print('Epoch: ', e)
+			print(f'################## BEST PERFORMANCE {test_error["l2error_overall"]} ########')
+			best_test_loss = test_error["l2error_overall"]
+			if best_test_loss < 10.25:
+				save_path = '../saved_models/' + args.version + '.pt'
+				torch.save({
+							'hyperparams': hyperparams,
+							'model_state_dict': model.state_dict(),
+							'optimizer_state_dict': optimizer.state_dict()
+							}, save_path)
+				if args.wandb:
+					save_model_wandb(save_path)
+				print(f'Saved model to:\n{save_path}')
 
-			# using the best guess for interpolation
-			interpolated_future = model.predict(x, best_guess_dest)
-			interpolated_future = interpolated_future.cpu().numpy()
-			best_guess_dest = best_guess_dest.cpu().numpy()
+		if test_error["l2error_dest"] < best_endpoint_loss:
+			best_endpoint_loss = test_error["l2error_dest"]
 
-			# final overall prediction
-			predicted_future = np.concatenate((interpolated_future, best_guess_dest), axis = 1)
-			predicted_future = np.reshape(predicted_future, (-1, hyper_params['future_length'], 2)) # making sure
-			# ADE error
-			l2error_overall = np.mean(np.linalg.norm(y - predicted_future, axis = 2))
-
-			l2error_overall /= hyper_params["data_scale"]
-			l2error_dest /= hyper_params["data_scale"]
-			l2error_avg_dest /= hyper_params["data_scale"]
-
-			print('Test time error in destination best: {:0.3f} and mean: {:0.3f}'.format(l2error_dest, l2error_avg_dest))
-			print('Test time error overall (ADE) best: {:0.3f}'.format(l2error_overall))
-
-	return l2error_overall, l2error_dest, l2error_avg_dest
-
-model = PECNet(hyper_params["enc_past_size"], hyper_params["enc_dest_size"], hyper_params["enc_latent_size"], hyper_params["dec_size"], hyper_params["predictor_hidden_size"], hyper_params['non_local_theta_size'], hyper_params['non_local_phi_size'], hyper_params['non_local_g_size'], hyper_params["fdim"], hyper_params["zdim"], hyper_params["nonlocal_pools"], hyper_params['non_local_dim'], hyper_params["sigma"], hyper_params["past_length"], hyper_params["future_length"], args.verbose)
-model = model.double().to(device)
-optimizer = optim.Adam(model.parameters(), lr=  hyper_params["learning_rate"])
-
-train_dataset = SocialDataset(set_name="train", b_size=32, t_tresh=hyper_params["time_thresh"], d_tresh=hyper_params["dist_thresh"], verbose=args.verbose)
-test_dataset = SocialDataset(set_name="test", b_size=32, t_tresh=hyper_params["time_thresh"], d_tresh=hyper_params["dist_thresh"], verbose=args.verbose)
-
-best_test_loss = 50 # start saving after this threshold
-best_endpoint_loss = 50
-N = hyper_params["n_values"]
-
-for e in range(hyper_params['num_epochs']):
-	train_loss, rcl, kld, adl = train(train_dataset)
-	test_loss, final_point_loss_best, final_point_loss_avg = test(test_dataset, best_of_n = N)
-
-
-	if best_test_loss > test_loss:
-		print("Epoch: ", e)
-		print('################## BEST PERFORMANCE {:0.2f} ########'.format(test_loss))
-		best_test_loss = test_loss
-		if best_test_loss < 10.25:
-			save_path = '../saved_models/' + args.save_file
-			torch.save({
-						'hyper_params': hyper_params,
-						'model_state_dict': model.state_dict(),
-						'optimizer_state_dict': optimizer.state_dict()
-						}, save_path)
-			print("Saved model to:\n{}".format(save_path))
-
-	if final_point_loss_best < best_endpoint_loss:
-		best_endpoint_loss = final_point_loss_best
-
-	print("Train Loss", train_loss)
-	print("RCL", rcl)
-	print("KLD", kld)
-	print("ADL", adl)
-	print("Test ADE", test_loss)
-	print("Test Average FDE (Across  all samples)", final_point_loss_avg)
-	print("Test Min FDE", final_point_loss_best)
-	print("Test Best ADE Loss So Far (N = {})".format(N), best_test_loss)
-	print("Test Best Min FDE (N = {})".format(N), best_endpoint_loss)
+		print('Train Loss', train_loss_dict["total_train_loss"])
+		print('RCL', train_loss_dict["total_rcl_loss"])
+		print('KLD', train_loss_dict["total_kld_loss"])
+		print('ADL', train_loss_dict["total_adl_loss"])
+		print('Test ADE', test_error["l2error_overall"])
+		print('Test Average FDE (Across  all samples)', test_error["l2error_avg_dest"])
+		print('Test Min FDE', test_error["l2error_dest"])
+		if args.wandb:
+			log_losses(losses=train_loss_dict, mode='train', epoch=e)
+			log_metrics(metrics=test_error, mode='test', epoch=e)
+		print(f'Test Best ADE Loss So Far (N = {N})', best_test_loss)
+		print(f'Test Best Min FDE (N = {N})', best_endpoint_loss)
