@@ -1,3 +1,5 @@
+import sys
+sys.path.append("../")
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -9,8 +11,8 @@ import numpy as np
 import yaml
 from torch.utils.data import DataLoader
 
-from models import PECNet
-from social_utils import SocialDataset
+from utils.models import PECNet
+from utils.social_utils import SocialDataset
 from utils.test_engine import test_engine
 
 parser = argparse.ArgumentParser(description='PECNet')
