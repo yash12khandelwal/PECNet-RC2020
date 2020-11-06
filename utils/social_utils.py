@@ -94,7 +94,7 @@ def collect_data(set_name, dataset_type = 'image', batch_size=512, time_thresh=4
 
 	current_size = 0
 	social_id = 0
-	part_file = f'/{'*' if scene == None else scene}.txt'
+	part_file = f'/{"*" if scene == None else scene}.txt'
 
 	for file in glob.glob(root_path + rel_path + part_file):
 		scene_name = file[len(root_path+rel_path)+1:-6] + file[-5]
