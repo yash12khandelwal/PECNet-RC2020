@@ -33,4 +33,9 @@ def train_engine(train_dataset, model, device, hyperparams, optimizer):
 		total_adl += adl.item()
 		optimizer.step()
 
-	return train_loss, total_rcl, total_kld, total_adl
+	return {
+		"total_train_loss": train_loss,
+		"total_rcl_loss": total_rcl,
+		"total_kld_loss": total_kld,
+		"total_adl_loss": total_adl
+	}
