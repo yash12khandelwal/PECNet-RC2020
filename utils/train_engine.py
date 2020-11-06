@@ -3,7 +3,7 @@ import torch.nn as nn
 
 from utils.social_utils import calculate_loss
 
-def train(train_dataset, model, device, hyper_params, optimizer):
+def train_engine(train_dataset, model, device, hyper_params, optimizer):
 
 	model.train()
 	train_loss = 0

@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 
-def test(test_dataset, model, device, hyper_params, best_of_n = 1):
+def test_engine(test_dataset, model, device, hyper_params, best_of_n = 1):
 	'''Evalutes test metrics. Assumes all test data is in one batch'''
 
 	model.eval()
@@ -52,7 +52,8 @@ def test(test_dataset, model, device, hyper_params, best_of_n = 1):
 
 			# final overall prediction
 			predicted_future = np.concatenate((interpolated_future, best_guess_dest), axis = 1)
-			predicted_future = np.reshape(predicted_future, (-1, hyper_params['future_length'], 2)) # making sure
+			predicted_future = np.reshape(predicted_future, (-1, hyper_params['future_length'], 2))
+			
 			# ADE error
 			l2error_overall = np.mean(np.linalg.norm(y - predicted_future, axis = 2))
 
