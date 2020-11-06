@@ -48,8 +48,8 @@ All code was developed and tested on Ubuntu 16.04.6 with Python 3.6.6 and PyTorc
 
 ### Steps:
 ```
-1. `pip install -r requiements.txt`
-2. `wandb login 0b5f978ab6f86d54b1ee4e485a8e477bfedcb491`
+1. pip install -r requiements.txt
+2. wandb login 0b5f978ab6f86d54b1ee4e485a8e477bfedcb491
 ```
 
 ## Pretrained Models
