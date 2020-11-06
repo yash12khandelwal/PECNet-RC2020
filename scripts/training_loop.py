@@ -50,14 +50,18 @@ if __name__ == '__main__':
 	if args.wandb:
 		init_wandb(hyperparams.copy(), args)
 
+	# initialize model
 	model = PECNet(hyperparams['enc_past_size'], hyperparams['enc_dest_size'], hyperparams['enc_latent_size'], hyperparams['dec_size'], hyperparams['predictor_hidden_size'], hyperparams['non_local_theta_size'], hyperparams['non_local_phi_size'], hyperparams['non_local_g_size'], hyperparams['fdim'], hyperparams['zdim'], hyperparams['nonlocal_pools'], hyperparams['non_local_dim'], hyperparams['sigma'], hyperparams['past_length'], hyperparams['future_length'], args.verbose)
 	model = model.double().to(device)
 
+	# save the gradients and model information to wandb
 	if args.wandb:
 		wandb.watch(model, log="all")
 
+	# initialize optimizer
 	optimizer = optim.Adam(model.parameters(), lr=  hyperparams['learning_rate'])
 
+	# initialize dataloaders
 	train_dataset = SocialDataset(set_name='train', b_size=hyperparams['train_b_size'], t_tresh=hyperparams['time_thresh'], d_tresh=hyperparams['dist_thresh'], verbose=args.verbose)
 	test_dataset = SocialDataset(set_name='test', b_size=hyperparams['test_b_size'], t_tresh=hyperparams['time_thresh'], d_tresh=hyperparams['dist_thresh'], verbose=args.verbose)
 
@@ -69,7 +73,6 @@ if __name__ == '__main__':
 		traj -= traj[:, :1, :]
 		traj *= hyperparams['data_scale']
 
-
 	best_test_loss = 50 # start saving after this threshold
 	best_endpoint_loss = 50
 	N = hyperparams['n_values']
@@ -80,7 +83,7 @@ if __name__ == '__main__':
 
 		if best_test_loss > test_loss:
 			print('Epoch: ', e)
-			print('################## BEST PERFORMANCE {:0.2f} ########'.format(test_loss))
+			print(f'################## BEST PERFORMANCE {test_loss} ########')
 			best_test_loss = test_loss
 			if best_test_loss < 10.25:
 				save_path = '../saved_models/' + args.version + '.pt'
@@ -91,7 +94,7 @@ if __name__ == '__main__':
 							}, save_path)
 				if args.wandb:
 					wandb.save(save_path)
-				print('Saved model to:\n{}'.format(save_path))
+				print(f'Saved model to:\n{save_path}')
 
 		if final_point_loss_best < best_endpoint_loss:
 			best_endpoint_loss = final_point_loss_best
@@ -105,5 +108,5 @@ if __name__ == '__main__':
 		print('Test ADE', test_loss)
 		print('Test Average FDE (Across  all samples)', final_point_loss_avg)
 		print('Test Min FDE', final_point_loss_best)
-		print('Test Best ADE Loss So Far (N = {})'.format(N), best_test_loss)
-		print('Test Best Min FDE (N = {})'.format(N), best_endpoint_loss)
+		print(f'Test Best ADE Loss So Far (N = {N})', best_test_loss)
+		print(f'Test Best Min FDE (N = {N})', best_endpoint_loss)

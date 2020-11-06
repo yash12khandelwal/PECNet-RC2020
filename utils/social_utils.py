@@ -84,7 +84,7 @@ def collect_data(set_name, dataset_type = 'image', batch_size=512, time_thresh=4
 		root_path/trajnet_image/test/scene_name.txt
 	'''
 
-	rel_path = '/trajnet_{0}/{1}/stanford'.format(dataset_type, set_name)
+	rel_path = f'/trajnet_{dataset_type}/{set_name}/stanford'
 
 	full_dataset = []
 	full_masks = []
@@ -94,7 +94,7 @@ def collect_data(set_name, dataset_type = 'image', batch_size=512, time_thresh=4
 
 	current_size = 0
 	social_id = 0
-	part_file = '/{}.txt'.format('*' if scene == None else scene)
+	part_file = f'/{'*' if scene == None else scene}.txt'
 
 	for file in glob.glob(root_path + rel_path + part_file):
 		scene_name = file[len(root_path+rel_path)+1:-6] + file[-5]
@@ -150,14 +150,14 @@ def generate_pooled_data(b_size, t_tresh, d_tresh, train=True, scene=None, verbo
 	if train:
 		full_train, full_masks_train = collect_data('train', batch_size=b_size, time_thresh=t_tresh, dist_tresh=d_tresh, scene=scene, verbose=verbose)
 		train = [full_train, full_masks_train]
-		train_name = '../social_pool_data/train_{0}_{1}_{2}_{3}.pickle'.format('all' if scene is None else scene[:-2] + scene[-1], b_size, t_tresh, d_tresh)
+		train_name = f'../social_pool_data/train_{"all" if scene is None else scene[:-2] + scene[-1]}_{b_size}_{t_tresh}_{d_tresh}.pickle'
 		with open(train_name, 'wb') as f:
 			pickle.dump(train, f)
 
 	if not train:
 		full_test, full_masks_test = collect_data('test', batch_size=b_size, time_thresh=t_tresh, dist_tresh=d_tresh, scene=scene, verbose=verbose)
 		test = [full_test, full_masks_test]
-		test_name = '../social_pool_data/test_{0}_{1}_{2}_{3}.pickle'.format('all' if scene is None else scene[:-2] + scene[-1], b_size, t_tresh, d_tresh)# + str(b_size) + '_' + str(t_tresh) + '_' + str(d_tresh) + '.pickle'
+		test_name = f'../social_pool_data/test_{"all" if scene is None else scene[:-2] + scene[-1]}_{b_size}_{t_tresh}_{d_tresh}.pickle'
 		with open(test_name, 'wb') as f:
 			pickle.dump(test, f)
 
@@ -184,7 +184,7 @@ class SocialDataset(data.Dataset):
 
 	def __init__(self, set_name='train', b_size=4096, t_tresh=60, d_tresh=50, scene=None, id=False, verbose=True):
 		'Initialization'
-		load_name = '../social_pool_data/{0}_{1}{2}_{3}_{4}.pickle'.format(set_name, 'all_' if scene is None else scene[:-2] + scene[-1] + '_', b_size, t_tresh, d_tresh)
+		load_name = f'../social_pool_data/{set_name}_{"all_" if scene is None else scene[:-2] + scene[-1] + "_"}{b_size}_{t_tresh}_{d_tresh}.pickle'
 		print(load_name)
 		with open(load_name, 'rb') as f:
 			data = pickle.load(f)

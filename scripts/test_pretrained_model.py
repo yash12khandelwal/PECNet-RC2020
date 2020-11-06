@@ -34,7 +34,7 @@ if torch.cuda.is_available():
 print(device)
 
 
-checkpoint = torch.load('../saved_models/{}'.format(args.load_file), map_location=device)
+checkpoint = torch.load(f'../saved_models/{args.load_file}', map_location=device)
 hyperparams = checkpoint['hyperparams']
 
 print(hyperparams)
