@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 
-def test_engine(test_dataset, model, device, hyper_params, best_of_n = 1):
+def test_engine(test_dataset, model, device, hyperparams, best_of_n = 1):
 	'''Evalutes test metrics. Assumes all test data is in one batch'''
 
 	model.eval()
@@ -10,8 +10,8 @@ def test_engine(test_dataset, model, device, hyper_params, best_of_n = 1):
 	with torch.no_grad():
 		for _, (traj, mask, initial_pos) in enumerate(zip(test_dataset.trajectory_batches, test_dataset.mask_batches, test_dataset.initial_pos_batches)):
 			traj, mask, initial_pos = torch.DoubleTensor(traj).to(device), torch.DoubleTensor(mask).to(device), torch.DoubleTensor(initial_pos).to(device)
-			x = traj[:, :hyper_params['past_length'], :]
-			y = traj[:, hyper_params['past_length']:, :]
+			x = traj[:, :hyperparams['past_length'], :]
+			y = traj[:, hyperparams['past_length']:, :]
 			y = y.cpu().numpy()
 
 			# reshape the data
@@ -52,14 +52,14 @@ def test_engine(test_dataset, model, device, hyper_params, best_of_n = 1):
 
 			# final overall prediction
 			predicted_future = np.concatenate((interpolated_future, best_guess_dest), axis = 1)
-			predicted_future = np.reshape(predicted_future, (-1, hyper_params['future_length'], 2))
+			predicted_future = np.reshape(predicted_future, (-1, hyperparams['future_length'], 2))
 			
 			# ADE error
 			l2error_overall = np.mean(np.linalg.norm(y - predicted_future, axis = 2))
 
-			l2error_overall /= hyper_params["data_scale"]
-			l2error_dest /= hyper_params["data_scale"]
-			l2error_avg_dest /= hyper_params["data_scale"]
+			l2error_overall /= hyperparams['data_scale']
+			l2error_dest /= hyperparams['data_scale']
+			l2error_avg_dest /= hyperparams['data_scale']
 
 			print('Test time error in destination best: {:0.3f} and mean: {:0.3f}'.format(l2error_dest, l2error_avg_dest))
 			print('Test time error overall (ADE) best: {:0.3f}'.format(l2error_overall))

@@ -79,15 +79,15 @@ class PECNet(nn.Module): # This is the main model which is executed
         architecture = lambda net: [l.in_features for l in net.layers] + [net.layers[-1].out_features]
 
         if verbose:
-            print("Past Encoder architecture : {}".format(architecture(self.encoder_past)))
-            print("Dest Encoder architecture : {}".format(architecture(self.encoder_dest)))
-            print("Latent Encoder architecture : {}".format(architecture(self.encoder_latent)))
-            print("Decoder architecture : {}".format(architecture(self.decoder)))
-            print("Predictor architecture : {}".format(architecture(self.predictor)))
+            print('Past Encoder architecture : {}'.format(architecture(self.encoder_past)))
+            print('Dest Encoder architecture : {}'.format(architecture(self.encoder_dest)))
+            print('Latent Encoder architecture : {}'.format(architecture(self.encoder_latent)))
+            print('Decoder architecture : {}'.format(architecture(self.decoder)))
+            print('Predictor architecture : {}'.format(architecture(self.predictor)))
 
-            print("Non Local Theta architecture : {}".format(architecture(self.non_local_theta)))
-            print("Non Local Phi architecture : {}".format(architecture(self.non_local_phi)))
-            print("Non Local g architecture : {}".format(architecture(self.non_local_g)))
+            print('Non Local Theta architecture : {}'.format(architecture(self.non_local_theta)))
+            print('Non Local Phi architecture : {}'.format(architecture(self.non_local_phi)))
+            print('Non Local g architecture : {}'.format(architecture(self.non_local_g)))
 
     def non_local_social_pooling(self, feat, mask):
         # Social pooling layer

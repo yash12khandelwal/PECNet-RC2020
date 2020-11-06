@@ -3,7 +3,7 @@ import torch.nn as nn
 
 from utils.social_utils import calculate_loss
 
-def train_engine(train_dataset, model, device, hyper_params, optimizer):
+def train_engine(train_dataset, model, device, hyperparams, optimizer):
 
 	model.train()
 	train_loss = 0
@@ -12,8 +12,8 @@ def train_engine(train_dataset, model, device, hyper_params, optimizer):
 
 	for _, (traj, mask, initial_pos) in enumerate(zip(train_dataset.trajectory_batches, train_dataset.mask_batches, train_dataset.initial_pos_batches)):
 		traj, mask, initial_pos = torch.DoubleTensor(traj).to(device), torch.DoubleTensor(mask).to(device), torch.DoubleTensor(initial_pos).to(device)
-		x = traj[:, :hyper_params['past_length'], :]
-		y = traj[:, hyper_params['past_length']:, :]
+		x = traj[:, :hyperparams['past_length'], :]
+		y = traj[:, hyperparams['past_length']:, :]
 
 		x = x.contiguous().view(-1, x.shape[1]*x.shape[2]) # (x,y,x,y ... )
 		x = x.to(device)
@@ -24,7 +24,7 @@ def train_engine(train_dataset, model, device, hyper_params, optimizer):
 
 		optimizer.zero_grad()
 		rcl, kld, adl = calculate_loss(dest, dest_recon, mu, var, criterion, future, interpolated_future)
-		loss = rcl + kld*hyper_params["kld_reg"] + adl*hyper_params["adl_reg"]
+		loss = rcl + kld*hyperparams['kld_reg'] + adl*hyperparams['adl_reg']
 		loss.backward()
 
 		train_loss += loss.item()
