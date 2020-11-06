@@ -64,7 +64,7 @@ def test_engine(test_dataset, model, device, hyperparams, best_of_n = 1):
 			print(f'Test time error in destination best: {l2error_dest} and mean: {l2error_avg_dest}')
 			print(f'Test time error overall (ADE) best: {l2error_overall}')
 
-	return{
+	return {
 		"l2error_overall": l2error_overall,
 		"l2error_dest": l2error_dest,
 		"l2error_avg_dest": l2error_avg_dest
