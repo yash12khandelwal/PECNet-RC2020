@@ -6,8 +6,7 @@ def init_wandb(cfg: dict, args=None) -> None:
         cfg (dict): Configuration dictionary
     '''
     wandb.init(
-        id=wandb_id,
-        name=cfg['version'],
+        name=args.version,
         project='Trajectory Prediction',
         config=cfg,
         dir='~/',

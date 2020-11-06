@@ -45,7 +45,6 @@ if __name__ == '__main__':
 		except:
 			hyperparams = yaml.load(file)
 	file.close()
-	import ipdb; ipdb.set_trace()
 	print(hyperparams)
 
 	if args.wandb:
