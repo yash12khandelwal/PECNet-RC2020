@@ -53,6 +53,9 @@ if __name__ == '__main__':
 	model = PECNet(hyperparams['enc_past_size'], hyperparams['enc_dest_size'], hyperparams['enc_latent_size'], hyperparams['dec_size'], hyperparams['predictor_hidden_size'], hyperparams['non_local_theta_size'], hyperparams['non_local_phi_size'], hyperparams['non_local_g_size'], hyperparams['fdim'], hyperparams['zdim'], hyperparams['nonlocal_pools'], hyperparams['non_local_dim'], hyperparams['sigma'], hyperparams['past_length'], hyperparams['future_length'], args.verbose)
 	model = model.double().to(device)
 
+	if args.wandb:
+		wandb.watch(model, log="all")
+
 	optimizer = optim.Adam(model.parameters(), lr=  hyperparams['learning_rate'])
 
 	train_dataset = SocialDataset(set_name='train', b_size=hyperparams['train_b_size'], t_tresh=hyperparams['time_thresh'], d_tresh=hyperparams['dist_thresh'], verbose=args.verbose)
@@ -80,12 +83,14 @@ if __name__ == '__main__':
 			print('################## BEST PERFORMANCE {:0.2f} ########'.format(test_loss))
 			best_test_loss = test_loss
 			if best_test_loss < 10.25:
-				save_path = '../saved_models/' + args.version + '.v'
+				save_path = '../saved_models/' + args.version + '.pt'
 				torch.save({
 							'hyperparams': hyperparams,
 							'model_state_dict': model.state_dict(),
 							'optimizer_state_dict': optimizer.state_dict()
 							}, save_path)
+				if args.wandb:
+					wandb.save(save_path)
 				print('Saved model to:\n{}'.format(save_path))
 
 		if final_point_loss_best < best_endpoint_loss:
