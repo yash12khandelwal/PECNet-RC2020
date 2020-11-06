@@ -9,6 +9,18 @@ from torch.utils import data
 import random
 import numpy as np
 
+def set_seed(seed):
+    """Set seed"""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+    os.environ["PYTHONHASHSEED"] = str(seed)
+
 '''for sanity check'''
 def naive_social(p1_key, p2_key, all_data_dict):
 	if abs(p1_key-p2_key)<4:
