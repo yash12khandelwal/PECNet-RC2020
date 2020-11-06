@@ -1,4 +1,5 @@
 import wandb
+import os
 
 def init_wandb(cfg: dict, model, args=None) -> None:
     '''Initialize project on Weights & Biases
@@ -19,7 +20,7 @@ def init_wandb(cfg: dict, model, args=None) -> None:
 def save_model_wandb(save_path: str):
     '''Save model weights to wandb
     '''
-    wandb.save(save_path)
+    wandb.save(os.path.abspath(save_path))
 
 def log_losses(losses: dict, mode: str, epoch: int):
     """
