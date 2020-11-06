@@ -13,7 +13,7 @@ from utils.models import PECNet
 from utils.social_utils import SocialDataset, set_seed
 from utils.train_engine import train_engine
 from utils.test_engine import test_engine
-from visualization.wandb_utils import init_wandb, log_losses
+from visualization.wandb_utils import init_wandb, log_losses, save_model_wandb, log_metrics
 
 if __name__ == '__main__':
 
@@ -47,19 +47,16 @@ if __name__ == '__main__':
 	file.close()
 	print(hyperparams)
 
-	if args.wandb:
-		init_wandb(hyperparams.copy(), args)
-
 	# initialize model
 	model = PECNet(hyperparams['enc_past_size'], hyperparams['enc_dest_size'], hyperparams['enc_latent_size'], hyperparams['dec_size'], hyperparams['predictor_hidden_size'], hyperparams['non_local_theta_size'], hyperparams['non_local_phi_size'], hyperparams['non_local_g_size'], hyperparams['fdim'], hyperparams['zdim'], hyperparams['nonlocal_pools'], hyperparams['non_local_dim'], hyperparams['sigma'], hyperparams['past_length'], hyperparams['future_length'], args.verbose)
 	model = model.double().to(device)
 
-	# save the gradients and model information to wandb
+	# initailize wandb, save the gradients and model information to wandb
 	if args.wandb:
-		wandb.watch(model, log="all")
+		init_wandb(hyperparams.copy(), model, args)
 
 	# initialize optimizer
-	optimizer = optim.Adam(model.parameters(), lr=  hyperparams['learning_rate'])
+	optimizer = optim.Adam(model.parameters(), lr=hyperparams['learning_rate'])
 
 	# initialize dataloaders
 	train_dataset = SocialDataset(set_name='train', b_size=hyperparams['train_b_size'], t_tresh=hyperparams['time_thresh'], d_tresh=hyperparams['dist_thresh'], verbose=args.verbose)
@@ -79,12 +76,12 @@ if __name__ == '__main__':
 
 	for e in range(hyperparams['num_epochs']):
 		train_loss_dict = train_engine(train_dataset, model, device, hyperparams, optimizer)
-		test_loss, final_point_loss_best, final_point_loss_avg = test_engine(test_dataset, model, device, hyperparams, best_of_n = N)
+		test_error = test_engine(test_dataset, model, device, hyperparams, best_of_n = N)
 
-		if best_test_loss > test_loss:
+		if test_error["l2error_overall"] < best_test_loss:
 			print('Epoch: ', e)
-			print(f'################## BEST PERFORMANCE {test_loss} ########')
-			best_test_loss = test_loss
+			print(f'################## BEST PERFORMANCE {test_error["l2error_overall"]} ########')
+			best_test_loss = test_error["l2error_overall"]
 			if best_test_loss < 10.25:
 				save_path = '../saved_models/' + args.version + '.pt'
 				torch.save({
@@ -93,20 +90,21 @@ if __name__ == '__main__':
 							'optimizer_state_dict': optimizer.state_dict()
 							}, save_path)
 				if args.wandb:
-					wandb.save(save_path)
+					save_model_wandb(save_path)
 				print(f'Saved model to:\n{save_path}')
 
-		if final_point_loss_best < best_endpoint_loss:
-			best_endpoint_loss = final_point_loss_best
+		if test_error["l2error_dest"] < best_endpoint_loss:
+			best_endpoint_loss = test_error["l2error_dest"]
 
 		print('Train Loss', train_loss_dict["total_train_loss"])
 		print('RCL', train_loss_dict["total_rcl_loss"])
 		print('KLD', train_loss_dict["total_kld_loss"])
 		print('ADL', train_loss_dict["total_adl_loss"])
+		print('Test ADE', test_error["l2error_overall"])
+		print('Test Average FDE (Across  all samples)', test_error["l2error_avg_dest"])
+		print('Test Min FDE', test_error["l2error_dest"])
 		if args.wandb:
 			log_losses(losses=train_loss_dict, mode='train', epoch=e)
-		print('Test ADE', test_loss)
-		print('Test Average FDE (Across  all samples)', final_point_loss_avg)
-		print('Test Min FDE', final_point_loss_best)
+			log_metrics(metrics=test_error, mode='test', epoch=e)
 		print(f'Test Best ADE Loss So Far (N = {N})', best_test_loss)
 		print(f'Test Best Min FDE (N = {N})', best_endpoint_loss)
