@@ -10,7 +10,7 @@ import random
 import numpy as np
 
 def set_seed(seed):
-    '''Set seed'''
+    """Set seed"""
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -19,9 +19,9 @@ def set_seed(seed):
         torch.cuda.manual_seed_all(seed)
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
-    os.environ['PYTHONHASHSEED'] = str(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
 
-'''for sanity check'''
+"""for sanity check"""
 def naive_social(p1_key, p2_key, all_data_dict):
 	if abs(p1_key-p2_key)<4:
 		return True
@@ -29,7 +29,7 @@ def naive_social(p1_key, p2_key, all_data_dict):
 		return False
 
 def find_min_time(t1, t2):
-	'''given two time frame arrays, find then min dist (time)'''
+	"""given two time frame arrays, find then min dist (time)"""
 	min_d = 9e4
 	t1, t2 = t1[:8], t2[:8]
 
@@ -44,7 +44,7 @@ def find_min_time(t1, t2):
 	return min_d
 
 def find_min_dist(p1x, p1y, p2x, p2y):
-	'''given two time frame arrays, find then min dist'''
+	"""given two time frame arrays, find then min dist"""
 	min_d = 9e4
 	p1x, p1y = p1x[:8], p1y[:8]
 	p2x, p2y = p2x[:8], p2y[:8]
@@ -75,16 +75,16 @@ def mark_similar(mask, sim_list):
 			mask[sim_list[i]][sim_list[j]] = 1
 
 
-def collect_data(set_name, dataset_type = 'image', batch_size=512, time_thresh=48, dist_tresh=100, scene=None, verbose=True, root_path='./'):
+def collect_data(set_name, dataset_type = "image", batch_size=512, time_thresh=48, dist_tresh=100, scene=None, verbose=True, root_path="./"):
 
-	assert set_name in ['train','val','test']
+	assert set_name in ["train","val","test"]
 
-	'''Please specify the parent directory of the dataset. In our case data was stored in:
+	"""Please specify the parent directory of the dataset. In our case data was stored in:
 		root_path/trajnet_image/train/scene_name.txt
 		root_path/trajnet_image/test/scene_name.txt
-	'''
+	"""
 
-	rel_path = f'/trajnet_{dataset_type}/{set_name}/stanford'
+	rel_path = f"/trajnet_{dataset_type}/{set_name}/stanford"
 
 	full_dataset = []
 	full_masks = []
@@ -94,11 +94,11 @@ def collect_data(set_name, dataset_type = 'image', batch_size=512, time_thresh=4
 
 	current_size = 0
 	social_id = 0
-	part_file = f'/{"*" if scene == None else scene}.txt'
+	part_file = f"/{'*' if scene == None else scene}.txt"
 
 	for file in glob.glob(root_path + rel_path + part_file):
 		scene_name = file[len(root_path+rel_path)+1:-6] + file[-5]
-		data = np.loadtxt(fname = file, delimiter = ' ')
+		data = np.loadtxt(fname = file, delimiter = " ")
 
 		data_by_id = {}
 		for frame_id, person_id, x, y in data:
@@ -108,7 +108,7 @@ def collect_data(set_name, dataset_type = 'image', batch_size=512, time_thresh=4
 
 		all_data_dict = data_by_id.copy()
 		if verbose:
-			print('Total People: ', len(list(data_by_id.keys())))
+			print("Total People: ", len(list(data_by_id.keys())))
 		while len(list(data_by_id.keys()))>0:
 			related_list = []
 			curr_keys = list(data_by_id.keys())
@@ -148,17 +148,17 @@ def collect_data(set_name, dataset_type = 'image', batch_size=512, time_thresh=4
 
 def generate_pooled_data(b_size, t_tresh, d_tresh, train=True, scene=None, verbose=True):
 	if train:
-		full_train, full_masks_train = collect_data('train', batch_size=b_size, time_thresh=t_tresh, dist_tresh=d_tresh, scene=scene, verbose=verbose)
+		full_train, full_masks_train = collect_data("train", batch_size=b_size, time_thresh=t_tresh, dist_tresh=d_tresh, scene=scene, verbose=verbose)
 		train = [full_train, full_masks_train]
-		train_name = f'../social_pool_data/train_{"all" if scene is None else scene[:-2] + scene[-1]}_{b_size}_{t_tresh}_{d_tresh}.pickle'
-		with open(train_name, 'wb') as f:
+		train_name = f"../social_pool_data/train_{'all' if scene is None else scene[:-2] + scene[-1]}_{b_size}_{t_tresh}_{d_tresh}.pickle"
+		with open(train_name, "wb") as f:
 			pickle.dump(train, f)
 
 	if not train:
 		full_test, full_masks_test = collect_data('test', batch_size=b_size, time_thresh=t_tresh, dist_tresh=d_tresh, scene=scene, verbose=verbose)
 		test = [full_test, full_masks_test]
-		test_name = f'../social_pool_data/test_{"all" if scene is None else scene[:-2] + scene[-1]}_{b_size}_{t_tresh}_{d_tresh}.pickle'
-		with open(test_name, 'wb') as f:
+		test_name = f"../social_pool_data/test_{'all' if scene is None else scene[:-2] + scene[-1]}_{b_size}_{t_tresh}_{d_tresh}.pickle"
+		with open(test_name, "wb") as f:
 			pickle.dump(test, f)
 
 def initial_pos(traj_batches):
@@ -169,24 +169,25 @@ def initial_pos(traj_batches):
 
 	return batches
 
-def calculate_loss(x, reconstructed_x, mean, log_var, criterion, future, interpolated_future):
-	# reconstruction loss
-	RCL_dest = criterion(x, reconstructed_x)
+def calculate_loss(x: torch.Tensor, reconstructed_x: torch.Tensor, mean: torch.Tensor, log_var: torch.Tensor, criterion, future: torch.Tensor, interpolated_future: torch.Tensor):
+	batch_loss_dict = {}
 
-	ADL_traj = criterion(future, interpolated_future) # better with l2 loss
+	# Averate Endpoint Loss
+	batch_loss_dict["ael"] = criterion(x, reconstructed_x)
+	# Average Trajectory Loss
+	batch_loss_dict["atl"] = criterion(future, interpolated_future)
+	# KL Divergence Loss
+	batch_loss_dict["kld"] = -0.5 * torch.sum(1 + log_var - mean.pow(2) - log_var.exp())
 
-	# kl divergence loss
-	KLD = -0.5 * torch.sum(1 + log_var - mean.pow(2) - log_var.exp())
-
-	return RCL_dest, KLD, ADL_traj
+	return batch_loss_dict
 
 class SocialDataset(data.Dataset):
 
-	def __init__(self, set_name='train', b_size=4096, t_tresh=60, d_tresh=50, scene=None, id=False, verbose=True):
-		'Initialization'
-		load_name = f'../social_pool_data/{set_name}_{"all_" if scene is None else scene[:-2] + scene[-1] + "_"}{b_size}_{t_tresh}_{d_tresh}.pickle'
+	def __init__(self, set_name="train", b_size=4096, t_tresh=60, d_tresh=50, scene=None, id=False, verbose=True):
+		"Initialization"
+		load_name = f"../social_pool_data/{set_name}_{'all_' if scene is None else scene[:-2] + scene[-1] + '_'}{b_size}_{t_tresh}_{d_tresh}.pickle"
 		print(load_name)
-		with open(load_name, 'rb') as f:
+		with open(load_name, "rb") as f:
 			data = pickle.load(f)
 
 		traj, masks = data
@@ -197,7 +198,7 @@ class SocialDataset(data.Dataset):
 				t = np.array(t)
 				t = t[:,:,2:]
 				traj_new.append(t)
-				if set_name=='train':
+				if set_name=="train":
 					#augment training set with reversed tracklets...
 					reverse_t = np.flip(t, axis=1).copy()
 					traj_new.append(reverse_t)
@@ -206,7 +207,7 @@ class SocialDataset(data.Dataset):
 				t = np.array(t)
 				traj_new.append(t)
 
-				if set_name=='train':
+				if set_name=="train":
 					#augment training set with reversed tracklets...
 					reverse_t = np.flip(t, axis=1).copy()
 					traj_new.append(reverse_t)
@@ -216,7 +217,7 @@ class SocialDataset(data.Dataset):
 		for m in masks:
 			masks_new.append(m)
 
-			if set_name=='train':
+			if set_name=="train":
 				#add second time for the reversed tracklets...
 				masks_new.append(m)
 
@@ -226,11 +227,11 @@ class SocialDataset(data.Dataset):
 		self.mask_batches = masks_new.copy()
 		self.initial_pos_batches = np.array(initial_pos(self.trajectory_batches)) #for relative positioning
 		if verbose:
-			print('Initialized social dataloader...')
+			print("Initialized social dataloader...")
 
-'''
-We've provided pickle files, but to generate new files for different datasets or thresholds, please use a command like so:
+"""
+We"ve provided pickle files, but to generate new files for different datasets or thresholds, please use a command like so:
 Parameter1: batchsize, Parameter2: time_thresh, Param3: dist_thresh
-'''
+"""
 
-# generate_pooled_data(512,0,25, train=True, verbose=True, root_path='./')
+# generate_pooled_data(512,0,25, train=True, verbose=True, root_path="./")
