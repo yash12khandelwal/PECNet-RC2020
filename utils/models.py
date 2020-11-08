@@ -11,21 +11,20 @@ import math
 import numpy as np
 import yaml
 
-"""MLP model"""
 class MLP(nn.Module):
     def __init__(self, input_dim: int, output_dim: int, hidden_size: tuple = (1024, 512), activation: str = "relu", discrim: bool = False, dropout: float = -1):
-        """[summary]
+        """Constructor of MLP Model Class
+        Takes in input about all the information required to create a Multi Layer Fully Connected Neural Network
 
         Arguments:
-            nn {[type]} -- [description]
-            input_dim {int} -- [description]
-            output_dim {int} -- [description]
+            input_dim {int} -- Input dimension of the MLP
+            output_dim {int} -- Output dimension of the MLP
 
         Keyword Arguments:
-            hidden_size {tuple} -- [description] (default: {(1024, 512)})
-            activation {str} -- [description] (default: {"relu"})
-            discrim {bool} -- [description] (default: {False})
-            dropout {float} -- [description] (default: {-1})
+            hidden_size {tuple} -- Dimensions of the hidden layer (default: {(1024, 512)})
+            activation {str} -- Activation function to be used between layers (default: {"relu"})
+            discrim {bool} -- True if use Sigmoid after the last layer else False (default: {False})
+            dropout {float} -- Dropout value to be used between layers (default: {-1})
         """
         super(MLP, self).__init__()
         dims = []
@@ -45,43 +44,48 @@ class MLP(nn.Module):
         self.dropout = dropout
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """[summary]
+        """Forward function of the MLP network
 
         Arguments:
-            x {torch.Tensor} -- [description]
+            x {torch.Tensor} -- Input to the MLP network
 
         Returns:
-            torch.Tensor -- [description]
+            torch.Tensor -- Output after forward pass to the MLP network
         """
         for i in range(len(self.layers)):
             x = self.layers[i](x)
+
+            # if not last layer, then use the activation function provided
+            # if last layer then use sigmoid activation function available else no activation function for last layer
             if i != len(self.layers)-1:
                 x = self.activation(x)
                 if self.dropout != -1:
                     x = nn.Dropout(min(0.1, self.dropout/3) if i == 1 else self.dropout)(x)
             elif self.sigmoid:
                 x = self.sigmoid(x)
+
         return x
 
-class PECNet(nn.Module): # This is the main model which is executed
+class PECNet(nn.Module):
 
     def __init__(self, enc_past_size: list, enc_dest_size: list, enc_latent_size: list, dec_size: list, predictor_size: list, non_local_theta_size: list, non_local_phi_size: list, non_local_g_size: list, fdim: int, zdim: int, nonlocal_pools: int, non_local_dim: int, sigma: float, past_length: int, future_length: int, verbose: bool):
-        """[summary]
+        """PECNet Model Construction
+        Constructed sub-modules of the PECNet model on the basis of the input dimension
 
         Arguments:
-            enc_past_size {list} -- [description]
-            enc_dest_size {list} -- [description]
-            enc_latent_size {list} -- [description]
-            dec_size {list} -- [description]
-            predictor_size {list} -- [description]
-            non_local_theta_size {list} -- [description]
-            non_local_phi_size {list} -- [description]
-            non_local_g_size {list} -- [description]
+            enc_past_size {list} -- Dimension of hidden layer of past trajectory encoder
+            enc_dest_size {list} -- Dimension of hidden layer of destination encoder
+            enc_latent_size {list} -- Dimension of hidden layer of latent encoder
+            dec_size {list} -- Dimensions of hidden layer of CVAE Decoder
+            predictor_size {list} -- Dimension of hidden layer of final prediction layer
+            non_local_theta_size {list} -- Dimensions of hidden layer of theta network of Social pooling module
+            non_local_phi_size {list} -- Dimensions of hidden layer of phi network of Social pooling module
+            non_local_g_size {list} -- Dimensions of hidden layer of g network of Social pooling module
             fdim {int} -- Output dimension of the past trajectory and destination position encoder
             zdim {int} -- Dimension of the latent space
-            nonlocal_pools {int} -- [description]
-            non_local_dim {int} -- [description]
-            sigma {float} -- [description]
+            nonlocal_pools {int} -- No. of iterations of regression through social pooling layer
+            non_local_dim {int} -- Output dimension of subnetwork (theta, phi) of Social Pooling Module
+            sigma {float} -- Variance of the normal distribution from which to sample the z vector
             past_length {int} -- No. of points taken to encode past trajectory
             future_length {int} -- No. of points to be predicted of the future trajectory
             verbose {bool} -- True if want to print the architecture information, else False
@@ -129,11 +133,11 @@ class PECNet(nn.Module): # This is the main model which is executed
             print(f"Non Local g architecture : {architecture(self.non_local_g)}")
 
     def non_local_social_pooling(self, feat: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-        """[summary]
+        """Social Pooling Module forward function
 
         Arguments:
             feat {torch.Tensor} -- [description]
-            mask {torch.Tensor} -- [description]
+            mask {torch.Tensor} -- Social Mask (batch_size, batch_size)
 
         Returns:
             torch.Tensor -- [description]
@@ -167,12 +171,12 @@ class PECNet(nn.Module): # This is the main model which is executed
 
         Arguments:
             x {torch.Tensor} -- Past Trajectory points -> (batch_size, No. of points * 2)
-            initial_pos {torch.Tensor} -- [description]
+            initial_pos {torch.Tensor} -- Initial position of the people -> (batch_size, 2)
 
         Keyword Arguments:
-            dest {torch.Tensor} -- [description] (default: {None})
-            mask {torch.Tensor} -- [description] (default: {None})
-            device -- [description] (default: {torch.device("cpu")})
+            dest {torch.Tensor} -- Ground Truth destination of the people (default: {None})
+            mask {torch.Tensor} -- Social Mask (default: {None})
+            device -- (default: {torch.device("cpu")})
 
         Returns:
             [type] -- [description]
