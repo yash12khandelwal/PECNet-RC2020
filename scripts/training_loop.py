@@ -70,19 +70,17 @@ if __name__ == "__main__":
 		traj -= traj[:, :1, :]
 		traj *= hyperparams["data_scale"]
 
-	best_test_loss = 50 # start saving after this threshold
-	best_endpoint_loss = 50
+	best_ade_error = 50 # start saving after this threshold
+	best_min_fde_error = 50
 	N = hyperparams["n_values"]
 
 	for e in range(hyperparams["num_epochs"]):
 		train_loss_dict = train_engine(train_dataset, model, device, hyperparams, optimizer)
-		test_error = test_engine(test_dataset, model, device, hyperparams, best_of_n = N)
+		test_error_dict = test_engine(test_dataset, model, device, hyperparams, best_of_n = N)
 
-		if test_error["l2error_overall"] < best_test_loss:
-			print("Epoch: ", e)
-			print(f"################## BEST PERFORMANCE {test_error['l2error_overall']} ########")
-			best_test_loss = test_error["l2error_overall"]
-			if best_test_loss < 10.25:
+		if test_error_dict["ade"] < best_ade_error:
+			best_ade_error = test_error_dict["ade"]
+			if best_ade_error < 10.25:
 				save_path = "../saved_models/" + args.version + ".pt"
 				torch.save({
 							"hyperparams": hyperparams,
@@ -91,18 +89,20 @@ if __name__ == "__main__":
 							}, save_path)
 				if args.wandb:
 					save_model_wandb(save_path)
-				print(f"Saved model to:\n{save_path}")
+				print(f"Saved model to: {save_path}")
 
-		if test_error["l2error_dest"] < best_endpoint_loss:
-			best_endpoint_loss = test_error["l2error_dest"]
-
-		for key, value in train_loss_dict.items():
-			print(key, value)
-		print("Test ADE", test_error["l2error_overall"])
-		print("Test Average FDE (Across  all samples)", test_error["l2error_avg_dest"])
-		print("Test Min FDE", test_error["l2error_dest"])
+		if test_error_dict["avg_min_fde"] < best_min_fde_error:
+			best_min_fde_error = test_error_dict["avg_min_fde"]
+		
 		if args.wandb:
 			log_losses(losses=train_loss_dict, mode="train", epoch=e)
-			log_metrics(metrics=test_error, mode="test", epoch=e)
-		print(f"Test Best ADE Loss So Far (N = {N})", best_test_loss)
-		print(f"Test Best Min FDE (N = {N})", best_endpoint_loss)
+			log_metrics(metrics=test_error_dict, mode="test", epoch=e)
+
+		loss_str = ""
+		for key in train_loss_dict:
+			loss_str += f"{key} = {train_loss_dict[key]}   "
+		error_str = ""
+		for key in test_error_dict:
+			error_str += f"{key} = {test_error_dict[key]}   "
+
+		print(f"\r[Epoch {e}]   [Best ADE {best_ade_error}]   [Best Min FDE {best_min_fde_error}]   {loss_str}   {error_str}", end='')
