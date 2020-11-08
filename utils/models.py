@@ -177,8 +177,6 @@ class PECNet(nn.Module): # This is the main model which is executed
         Returns:
             [type] -- [description]
         """
-        import ipdb; ipdb.set_trace()
-        
         # if model is in training mode, dest & mask should not be None
         # if model is in validation mode, dest & mask should be None
         assert self.training ^ (dest is None)
