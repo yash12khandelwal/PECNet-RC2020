@@ -116,7 +116,7 @@ class PECNet(nn.Module):
         self.non_local_phi = MLP(input_dim = 2*fdim + 2, output_dim = non_local_dim, hidden_size=non_local_phi_size)
         self.non_local_g = MLP(input_dim = 2*fdim + 2, output_dim = 2*fdim + 2, hidden_size=non_local_g_size)
 
-        # This layer is used to finally make the prediction
+        # This layer is used to make the final trajectory points prediction except the final point (which is already predicted)
         self.predictor = MLP(input_dim = 2*fdim + 2, output_dim = 2*(future_length-1), hidden_size=predictor_size)
 
         architecture = lambda net: [l.in_features for l in net.layers] + [net.layers[-1].out_features]
@@ -136,38 +136,27 @@ class PECNet(nn.Module):
         """Social Pooling Module forward function
 
         Arguments:
-            feat {torch.Tensor} -- [description]
+            feat {torch.Tensor} -- Predicted features (past_encoder + generated_dest + initial_pos)
             mask {torch.Tensor} -- Social Mask (batch_size, batch_size)
 
         Returns:
-            torch.Tensor -- [description]
+            torch.Tensor -- socially pooled features + predicted features (past_encoder + generated_dest + initial_pos)
         """
-        # Social pooling layer
-        # N,C
         theta_x = self.non_local_theta(feat)
-
-        # C,N
         phi_x = self.non_local_phi(feat).transpose(1,0)
 
-        # f_ij = (theta_i)^T(phi_j), (N,N)
-        f = torch.matmul(theta_x, phi_x) #(N,64)X(64,N)
-
-        # f_weights_ij =  exp(f_ij)/(\sum_{j=1}^N exp(f_ij))
+        f = torch.matmul(theta_x, phi_x)
         f_weights = F.softmax(f, dim = -1)
-
-        # setting weights of non neighbours to zero
-        f_weights = f_weights * mask
-
-        # rescaling row weights to 1
+        f_weights = f_weights * mask # setting weights of non neighbours to zero
         f_weights = F.normalize(f_weights, p=1, dim=1)
 
-        # ith row of all_pooled_f = \sum_{j=1}^N f_weights_ij * g_row_j
         pooled_f = torch.matmul(f_weights, self.non_local_g(feat))
 
         return pooled_f + feat
 
-    def forward(self, x: torch.Tensor, initial_pos: torch.Tensor, dest: torch.Tensor = None, mask: torch.Tensor = None, device=torch.device("cpu")):
-        """[summary]
+    def forward(self, x: torch.Tensor, initial_pos: torch.Tensor, dest: torch.Tensor = None, mask: torch.Tensor = None, device=torch.device("cpu")) -> tuple:
+        """Forward function of the PECNet model.
+        This function gets called to do the forward pass through the network.
 
         Arguments:
             x {torch.Tensor} -- Past Trajectory points -> (batch_size, No. of points * 2)
@@ -179,7 +168,8 @@ class PECNet(nn.Module):
             device -- (default: {torch.device("cpu")})
 
         Returns:
-            [type] -- [description]
+            tuple -- If training, the tuple returns the destination point, mean, logvar, future trajectory points
+                     If validation, the tuple only returns the destination point
         """
         # if model is in training mode, dest & mask should not be None
         # if model is in validation mode, dest & mask should be None
@@ -219,10 +209,10 @@ class PECNet(nn.Module):
         # output -> (batch_size, 2)
         generated_dest = self.decoder(decoder_input)
 
+        # prediction of trajectory points only during training only
+        # during val/test the best generated_dest is chosen
         if self.training:
-            # prediction in training, no best selection
             generated_dest_features = self.encoder_dest(generated_dest)
-            # ftraj contains history information, generated_dest_features is the latent encoding and intial_pos is the current posision of all the vehicles
             prediction_features = torch.cat((ftraj, generated_dest_features, initial_pos), dim = 1)
 
             for i in range(self.nonlocal_pools):
@@ -233,25 +223,25 @@ class PECNet(nn.Module):
 
         return generated_dest
 
-    # separated for forward to let choose the best destination
     def predict(self, past: torch.Tensor, generated_dest: torch.Tensor, mask: torch.Tensor, initial_pos: torch.Tensor) -> torch.Tensor:
-        """[summary]
+        """This function is used be test engine to predict the best destination
+        Similar computation is done in the forward function too but only for train, as during the validation best generated_dest
+        is chosen outside the function. 
 
         Arguments:
-            past {torch.Tensor} -- [description]
-            generated_dest {torch.Tensor} -- [description]
-            mask {torch.Tensor} -- [description]
-            initial_pos {torch.Tensor} -- [description]
+            past {torch.Tensor} -- Past Trajectory points -> (batch_size, No. of points * 2)
+            generated_dest {torch.Tensor} -- Generated destination by the model -> (batch_size, 2)
+            mask {torch.Tensor} -- Social Mask -> (batch_size, batch_size)
+            initial_pos {torch.Tensor} -- Initial position of the people -> (batch_size, 2)
 
         Returns:
-            torch.Tensor -- [description]
+            torch.Tensor -- Predicted trajectory points except the end point -> (batch_size, 2*(future_length - 1))
         """
         ftraj = self.encoder_past(past)
         generated_dest_features = self.encoder_dest(generated_dest)
         prediction_features = torch.cat((ftraj, generated_dest_features, initial_pos), dim = 1)
 
         for i in range(self.nonlocal_pools):
-            # non local social pooling
             prediction_features = self.non_local_social_pooling(prediction_features, mask)
 
         interpolated_future = self.predictor(prediction_features)
