@@ -96,10 +96,8 @@ if __name__ == "__main__":
 		if test_error["l2error_dest"] < best_endpoint_loss:
 			best_endpoint_loss = test_error["l2error_dest"]
 
-		print("Train Loss", train_loss_dict["total_train_loss"])
-		print("RCL", train_loss_dict["total_rcl_loss"])
-		print("KLD", train_loss_dict["total_kld_loss"])
-		print("ADL", train_loss_dict["total_adl_loss"])
+		for key, value in train_loss_dict.items():
+			print(key, value)
 		print("Test ADE", test_error["l2error_overall"])
 		print("Test Average FDE (Across  all samples)", test_error["l2error_avg_dest"])
 		print("Test Min FDE", test_error["l2error_dest"])
