@@ -169,7 +169,7 @@ def initial_pos(traj_batches):
 
 	return batches
 
-def calculate_loss(x: torch.Tensor, reconstructed_x: torch.Tensor, mean: torch.Tensor, log_var: torch.Tensor, criterion, future: torch.Tensor, interpolated_future: torch.Tensor):
+def calculate_loss(criterion, x: torch.Tensor, reconstructed_x: torch.Tensor, mean: torch.Tensor, log_var: torch.Tensor, future: torch.Tensor, interpolated_future: torch.Tensor):
 	batch_loss_dict = {}
 
 	# Averate Endpoint Loss
