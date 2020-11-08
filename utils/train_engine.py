@@ -7,7 +7,7 @@ from utils.social_utils import calculate_loss
 def train_engine(train_dataset, model, device, hyperparams: dict, optimizer):
 
 	model.train()
-	loss_dict = defaultdict(0)
+	loss_dict = defaultdict(lambda : 0)
 	criterion = nn.MSELoss()
 
 	for _, (traj, mask, initial_pos) in enumerate(zip(train_dataset.trajectory_batches, train_dataset.mask_batches, train_dataset.initial_pos_batches)):
