@@ -91,8 +91,8 @@ if __name__ == "__main__":
 					save_model_wandb(save_path)
 				print(f"Saved model to: {save_path}")
 
-		if test_error_dict["avg_min_fde"] < best_min_fde_error:
-			best_min_fde_error = test_error_dict["avg_min_fde"]
+		if test_error_dict["fde_best"] < best_min_fde_error:
+			best_min_fde_error = test_error_dict["fde_best"]
 		
 		if args.wandb:
 			log_losses(losses=train_loss_dict, mode="train", epoch=e)
@@ -105,4 +105,4 @@ if __name__ == "__main__":
 		for key in test_error_dict:
 			error_str += f"{key} = {test_error_dict[key]}   "
 
-		print(f"\r[Epoch {e}]   [Best ADE {best_ade_error}]   [Best Min FDE {best_min_fde_error}]   {loss_str}   {error_str}", end='')
+		print(f"\r[Epoch {e}]   [Best ADE {best_ade_error}]   [Best FDE {best_min_fde_error}]   {loss_str}   {error_str}", end='')
