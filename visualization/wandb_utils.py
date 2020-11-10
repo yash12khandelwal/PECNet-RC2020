@@ -46,3 +46,8 @@ def log_metrics(metrics: dict, mode: str, epoch: int):
 
     for k, v in metrics.items():
         wandb.log({f"{mode}/{k}": v}, step=epoch)
+
+def log_summary(best_metrics: dict):
+    
+    for key in best_metrics:
+        wandb.run.summary[f"{key}"] = best_metrics[key]

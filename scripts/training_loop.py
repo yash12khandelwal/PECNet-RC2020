@@ -13,7 +13,7 @@ from utils.models import PECNet
 from utils.social_utils import SocialDataset, set_seed
 from utils.train_engine import train_engine
 from utils.test_engine import test_engine
-from visualization.wandb_utils import init_wandb, log_losses, save_model_wandb, log_metrics
+from visualization.wandb_utils import init_wandb, log_losses, save_model_wandb, log_metrics, log_summary
 
 if __name__ == "__main__":
 
@@ -70,17 +70,19 @@ if __name__ == "__main__":
 		traj -= traj[:, :1, :]
 		traj *= hyperparams["data_scale"]
 
-	best_ade_error = 50 # start saving after this threshold
-	best_min_fde_error = 50
+	best_ade = 50 # start saving after this threshold
+	best_fde = 50
+	best_metrics = {}
 	N = hyperparams["n_values"]
 
 	for e in range(hyperparams["num_epochs"]):
 		train_loss_dict = train_engine(train_dataset, model, device, hyperparams, optimizer)
 		test_error_dict = test_engine(test_dataset, model, device, hyperparams, best_of_n = N)
 
-		if test_error_dict["ade"] < best_ade_error:
-			best_ade_error = test_error_dict["ade"]
-			if best_ade_error < 10.25:
+		if test_error_dict["ade"] < best_ade:
+			best_ade = test_error_dict["ade"]
+			best_metrics["best_ade"] = (best_ade, e)
+			if best_ade < 10.25:
 				save_path = "../saved_models/" + args.version + ".pt"
 				torch.save({
 							"hyperparams": hyperparams,
@@ -91,12 +93,14 @@ if __name__ == "__main__":
 					save_model_wandb(save_path)
 				print(f"Saved model to: {save_path}")
 
-		if test_error_dict["fde_best"] < best_min_fde_error:
-			best_min_fde_error = test_error_dict["fde_best"]
+		if test_error_dict["fde_best"] < best_fde:
+			best_fde = test_error_dict["fde_best"]
+			best_metrics["best_fde"] = (best_fde, e)
 		
 		if args.wandb:
 			log_losses(losses=train_loss_dict, mode="train", epoch=e)
 			log_metrics(metrics=test_error_dict, mode="test", epoch=e)
+			log_summary(best_metrics=best_metrics)
 
 		loss_str = ""
 		for key in train_loss_dict:
@@ -105,4 +109,4 @@ if __name__ == "__main__":
 		for key in test_error_dict:
 			error_str += f"{key} = {test_error_dict[key]}   "
 
-		print(f"\r[Epoch {e}]   [Best ADE {best_ade_error}]   [Best FDE {best_min_fde_error}]   {loss_str}   {error_str}", end='')
+		print(f"\r[Epoch {e}]   [Best ADE {best_ade}]   [Best FDE {best_fde}]   {loss_str}   {error_str}", end='')
