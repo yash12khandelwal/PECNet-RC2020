@@ -61,7 +61,7 @@ def main():
 	for _ in range(num_samples):
 		test_error_dict = test_engine(test_dataset, model, device, hyperparams, best_of_n = N)
 		test_error["ade"] += test_error_dict["ade"]
-		test_error["fde"] += test_error_dict["fde_best"]
+		test_error["fde"] += test_error_dict["fde"]
 
 	for key in test_error:
 		print(f"Average {key} = {test_error[key] / num_samples}")

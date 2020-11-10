@@ -71,7 +71,7 @@ def test_engine(test_dataset, model, device, hyperparams: dict, best_of_n: int =
 			ade = np.mean(np.linalg.norm(future_traj - predicted_future, axis = 2))
 
 			error_dict["ade"] += ade /hyperparams["data_scale"]
-			error_dict["fde_best"] += avg_min_fde / hyperparams["data_scale"]
+			error_dict["fde"] += avg_min_fde / hyperparams["data_scale"]
 			error_dict["fde_avg"] = fde / hyperparams["data_scale"]
 
 	for key in error_dict:

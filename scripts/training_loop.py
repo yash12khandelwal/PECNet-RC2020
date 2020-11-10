@@ -93,8 +93,8 @@ if __name__ == "__main__":
 					save_model_wandb(save_path)
 				print(f"Saved model to: {save_path}")
 
-		if test_error_dict["fde_best"] < best_fde:
-			best_fde = test_error_dict["fde_best"]
+		if test_error_dict["fde"] < best_fde:
+			best_fde = test_error_dict["fde"]
 			best_metrics["best_fde"] = (best_fde, e)
 		
 		if args.wandb:
