@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import yaml
 from torch.utils.data import DataLoader
+from collections import defaultdict
 
 from utils.models import PECNet
 from utils.social_utils import SocialDataset
@@ -35,7 +36,10 @@ print(device)
 
 
 checkpoint = torch.load(f"../saved_models/{args.load_file}", map_location=device)
-hyperparams = checkpoint["hyperparams"]
+try:
+	hyperparams = checkpoint["hyperparams"]
+except:
+	hyperparams = checkpoint["hyper_params"]
 
 print(hyperparams)
 
@@ -52,14 +56,14 @@ def main():
 
 	#average ade/fde for k=20 (to account for variance in sampling)
 	num_samples = 150
-	average_ade, average_fde = 0, 0
-	for _ in range(num_samples):
-		test_loss, final_point_loss_best, final_point_loss_avg = test_engine(test_dataset, model, device, hyperparams, best_of_n = N)
-		average_ade += test_loss
-		average_fde += final_point_loss_best
+	test_error = defaultdict(lambda: 0)
 
-	print()
-	print("Average ADE:", average_ade/num_samples)
-	print("Average FDE:", average_fde/num_samples)
+	for _ in range(num_samples):
+		test_error_dict = test_engine(test_dataset, model, device, hyperparams, best_of_n = N)
+		test_error["ade"] += test_error_dict["ade"]
+		test_error["fde"] += test_error_dict["fde_best"]
+
+	for key in test_error:
+		print(f"Average {key} = {test_error[key] / num_samples}")
 
 main()
