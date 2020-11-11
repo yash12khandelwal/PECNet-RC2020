@@ -46,6 +46,12 @@ Our model consists of two sequential steps: an endpoint prediction module and a 
 ## Setup
 All code was developed and tested on Ubuntu 16.04.6 with Python 3.6.6 and PyTorch 1.4.0 with CUDA 10.0.
 
+### Steps:
+```
+1. pip install -r requirements.txt
+2. wandb login 0b5f978ab6f86d54b1ee4e485a8e477bfedcb491
+```
+
 ## Pretrained Models
 Pretrained models are available in the `saved_models` folder.
 

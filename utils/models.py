@@ -11,9 +11,21 @@ import math
 import numpy as np
 import yaml
 
-'''MLP model'''
-class MLP(nn.Module):  # This is used for creating a multilayer full connected layer
-    def __init__(self, input_dim, output_dim, hidden_size=(1024, 512), activation='relu', discrim=False, dropout=-1):
+class MLP(nn.Module):
+    def __init__(self, input_dim: int, output_dim: int, hidden_size: tuple = (1024, 512), activation: str = "relu", discrim: bool = False, dropout: float = -1):
+        """Constructor of MLP Model Class
+        Takes in input about all the information required to create a Multi Layer Fully Connected Neural Network
+
+        Arguments:
+            input_dim {int} -- Input dimension of the MLP
+            output_dim {int} -- Output dimension of the MLP
+
+        Keyword Arguments:
+            hidden_size {tuple} -- Dimensions of the hidden layer (default: {(1024, 512)})
+            activation {str} -- Activation function to be used between layers (default: {"relu"})
+            discrim {bool} -- True if use Sigmoid after the last layer else False (default: {False})
+            dropout {float} -- Dropout value to be used between layers (default: {-1})
+        """
         super(MLP, self).__init__()
         dims = []
         dims.append(input_dim)
@@ -23,49 +35,80 @@ class MLP(nn.Module):  # This is used for creating a multilayer full connected l
         for i in range(len(dims)-1):
             self.layers.append(nn.Linear(dims[i], dims[i+1]))
 
-        if activation == 'relu':
+        if activation == "relu":
             self.activation = nn.ReLU()
-        elif activation == 'sigmoid':
+        elif activation == "sigmoid":
             self.activation = nn.Sigmoid()
 
         self.sigmoid = nn.Sigmoid() if discrim else None
         self.dropout = dropout
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward function of the MLP network
+
+        Arguments:
+            x {torch.Tensor} -- Input to the MLP network
+
+        Returns:
+            torch.Tensor -- Output after forward pass to the MLP network
+        """
         for i in range(len(self.layers)):
             x = self.layers[i](x)
+
+            # if not last layer, then use the activation function provided
+            # if last layer then use sigmoid activation function available else no activation function for last layer
             if i != len(self.layers)-1:
                 x = self.activation(x)
                 if self.dropout != -1:
                     x = nn.Dropout(min(0.1, self.dropout/3) if i == 1 else self.dropout)(x)
             elif self.sigmoid:
                 x = self.sigmoid(x)
+
         return x
 
-class PECNet(nn.Module): # This is the main model which is executed
+class PECNet(nn.Module):
 
-    def __init__(self, enc_past_size, enc_dest_size, enc_latent_size, dec_size, predictor_size, non_local_theta_size, non_local_phi_size, non_local_g_size, fdim, zdim, nonlocal_pools, non_local_dim, sigma, past_length, future_length, verbose):
-        '''
-        Args:
-            size parameters: Dimension sizes
-            nonlocal_pools: Number of nonlocal pooling operations to be performed
-            sigma: Standard deviation used for sampling N(0, sigma)
-            past_length: Length of past history (number of timesteps)
-            future_length: Length of future trajectory to be predicted
-        '''
+    def __init__(self, enc_past_size: list, enc_dest_size: list, enc_latent_size: list, dec_size: list, predictor_size: list, non_local_theta_size: list, non_local_phi_size: list, non_local_g_size: list, fdim: int, zdim: int, nonlocal_pools: int, non_local_dim: int, sigma: float, past_length: int, future_length: int, verbose: bool):
+        """PECNet Model Construction
+        Constructed sub-modules of the PECNet model on the basis of the input dimension
+
+        Arguments:
+            enc_past_size {list} -- Dimension of hidden layer of past trajectory encoder
+            enc_dest_size {list} -- Dimension of hidden layer of destination encoder
+            enc_latent_size {list} -- Dimension of hidden layer of latent encoder
+            dec_size {list} -- Dimensions of hidden layer of CVAE Decoder
+            predictor_size {list} -- Dimension of hidden layer of final prediction layer
+            non_local_theta_size {list} -- Dimensions of hidden layer of theta network of Social pooling module
+            non_local_phi_size {list} -- Dimensions of hidden layer of phi network of Social pooling module
+            non_local_g_size {list} -- Dimensions of hidden layer of g network of Social pooling module
+            fdim {int} -- Output dimension of the past trajectory and destination position encoder
+            zdim {int} -- Dimension of the latent space
+            nonlocal_pools {int} -- No. of iterations of regression through social pooling layer
+            non_local_dim {int} -- Output dimension of subnetwork (theta, phi) of Social Pooling Module
+            sigma {float} -- Variance of the normal distribution from which to sample the z vector
+            past_length {int} -- No. of points taken to encode past trajectory
+            future_length {int} -- No. of points to be predicted of the future trajectory
+            verbose {bool} -- True if want to print the architecture information, else False
+        """
         super(PECNet, self).__init__()
 
         self.zdim = zdim   # Dimension of the latent variable
         self.nonlocal_pools = nonlocal_pools  
         self.sigma = sigma  # For testing the latent variable is sampled as mu=0 and variance=sigma
 
-        # takes in the past
+        # past trajectory information encoder
+        # input -> trajectory points -> (x_coordinate, y_coordinate)
         self.encoder_past = MLP(input_dim = past_length*2, output_dim = fdim, hidden_size=enc_past_size)
 
+        # destination position encoder
+        # input -> (x_coordinate, y_coordinate)
         self.encoder_dest = MLP(input_dim = 2, output_dim = fdim, hidden_size=enc_dest_size)
 
+        # CVAE encoder - decoder
+        # input -> concatenated encoded information from the past and dest encoder
         self.encoder_latent = MLP(input_dim = 2*fdim, output_dim = 2*zdim, hidden_size=enc_latent_size)
-
+        # input -> concatenated past traj encoded info and encoded latent vector
+        # output -> destination coordinate -> (x_coordinate, y_coordinate)
         self.decoder = MLP(input_dim = fdim + zdim, output_dim = 2, hidden_size=dec_size)
 
         # These 3 layers are used to establish social pooling among vehicles
@@ -73,65 +116,81 @@ class PECNet(nn.Module): # This is the main model which is executed
         self.non_local_phi = MLP(input_dim = 2*fdim + 2, output_dim = non_local_dim, hidden_size=non_local_phi_size)
         self.non_local_g = MLP(input_dim = 2*fdim + 2, output_dim = 2*fdim + 2, hidden_size=non_local_g_size)
 
-        # This layer is used to finally make the prediction
-        self.predictor = MLP(input_dim = 2*fdim, output_dim = 2*(future_length-1), hidden_size=predictor_size)
+        # This layer is used to make the final trajectory points prediction except the final point (which is already predicted)
+        self.predictor = MLP(input_dim = 2*fdim + 2, output_dim = 2*(future_length-1), hidden_size=predictor_size)
 
         architecture = lambda net: [l.in_features for l in net.layers] + [net.layers[-1].out_features]
 
         if verbose:
-            print("Past Encoder architecture : {}".format(architecture(self.encoder_past)))
-            print("Dest Encoder architecture : {}".format(architecture(self.encoder_dest)))
-            print("Latent Encoder architecture : {}".format(architecture(self.encoder_latent)))
-            print("Decoder architecture : {}".format(architecture(self.decoder)))
-            print("Predictor architecture : {}".format(architecture(self.predictor)))
+            print(f"Past Encoder architecture : {architecture(self.encoder_past)}")
+            print(f"Dest Encoder architecture : {architecture(self.encoder_dest)}")
+            print(f"Latent Encoder architecture : {architecture(self.encoder_latent)}")
+            print(f"Decoder architecture : {architecture(self.decoder)}")
+            print(f"Predictor architecture : {architecture(self.predictor)}")
 
-            print("Non Local Theta architecture : {}".format(architecture(self.non_local_theta)))
-            print("Non Local Phi architecture : {}".format(architecture(self.non_local_phi)))
-            print("Non Local g architecture : {}".format(architecture(self.non_local_g)))
+            print(f"Non Local Theta architecture : {architecture(self.non_local_theta)}")
+            print(f"Non Local Phi architecture : {architecture(self.non_local_phi)}")
+            print(f"Non Local g architecture : {architecture(self.non_local_g)}")
 
-    def non_local_social_pooling(self, feat, mask):
-        # Social pooling layer
-        # N,C
+    def non_local_social_pooling(self, feat: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+        """Social Pooling Module forward function
+
+        Arguments:
+            feat {torch.Tensor} -- Predicted features (past_encoder + generated_dest + initial_pos)
+            mask {torch.Tensor} -- Social Mask (batch_size, batch_size)
+
+        Returns:
+            torch.Tensor -- socially pooled features + predicted features (past_encoder + generated_dest + initial_pos)
+        """
         theta_x = self.non_local_theta(feat)
-
-        # C,N
         phi_x = self.non_local_phi(feat).transpose(1,0)
 
-        # f_ij = (theta_i)^T(phi_j), (N,N)
-        f = torch.matmul(theta_x, phi_x) #(N,64)X(64,N)
-
-        # f_weights_ij =  exp(f_ij)/(\sum_{j=1}^N exp(f_ij))
+        f = torch.matmul(theta_x, phi_x)
         f_weights = F.softmax(f, dim = -1)
-
-        # setting weights of non neighbours to zero
-        f_weights = f_weights * mask
-
-        # rescaling row weights to 1
+        f_weights = f_weights * mask # setting weights of non neighbours to zero
         f_weights = F.normalize(f_weights, p=1, dim=1)
 
-        # ith row of all_pooled_f = \sum_{j=1}^N f_weights_ij * g_row_j
         pooled_f = torch.matmul(f_weights, self.non_local_g(feat))
 
         return pooled_f + feat
 
-    def forward(self, x, dest = None, device=torch.device('cpu')):
+    #def forward(self, x: torch.Tensor, initial_pos: torch.Tensor, dest: torch.Tensor = None, mask: torch.Tensor = None, device=torch.device("cpu")) -> tuple:
+    def forward(self, x: torch.Tensor, initial_pos: torch.Tensor, dest: torch.Tensor = None, device=torch.device("cpu")) -> tuple:
+        """Forward function of the PECNet model.
+        This function gets called to do the forward pass through the network.
 
-        # provide destination iff training
-        # assert model.training
+        Arguments:
+            x {torch.Tensor} -- Past Trajectory points -> (batch_size, No. of points * 2)
+            initial_pos {torch.Tensor} -- Initial position of the people -> (batch_size, 2)
+
+        Keyword Arguments:
+            dest {torch.Tensor} -- Ground Truth destination of the people (default: {None})
+            mask {torch.Tensor} -- Social Mask (default: {None})
+            device -- (default: {torch.device("cpu")})
+
+        Returns:
+            tuple -- If training, the tuple returns the destination point, mean, logvar, future trajectory points
+                     If validation, the tuple only returns the destination point
+        """
+        # if model is in training mode, dest & mask should not be None
+        # if model is in validation mode, dest & mask should be None
         assert self.training ^ (dest is None)
-        # Batch is customarily generated
-        # x is of dim (N, path_length*2)
-        # encode
+        assert self.training ^ (mask is None)
+
+        # encode the past trajectory
+        # output -> (batch_size, fdim)
         ftraj = self.encoder_past(x)
 
+        # if training, then use the ground truth destination position to encode them and then concatenate with ftraj to get the latent features
+        # using the VAE Reparametrization trick, get the z vector
+        # if validation, then sample the latent vector from a normal with mean -> 0 and variance -> sigma
         if not self.training:
             z = torch.Tensor(x.size(0), self.zdim)
             z.normal_(0, self.sigma)
 
         else:
-            # during training, use the destination to produce generated_dest and use it again to predict final future points
-
-            # CVAE code
+            # encode the ground truth destination positions to get dest_features
+            # output -> (batch_size, fdim)
             dest_features = self.encoder_dest(dest)
             features = torch.cat((ftraj, dest_features), dim = 1)
             latent =  self.encoder_latent(features)
@@ -139,6 +198,7 @@ class PECNet(nn.Module): # This is the main model which is executed
             mu = latent[:, 0:self.zdim] # 2-d array
             logvar = latent[:, self.zdim:] # 2-d array
 
+            # sample z from the predicted mean and logvar of the normal distribution
             var = logvar.mul(0.5).exp_()
             eps = torch.DoubleTensor(var.size()).normal_()
             eps = eps.to(device)
@@ -146,32 +206,45 @@ class PECNet(nn.Module): # This is the main model which is executed
 
         z = z.double().to(device)
         decoder_input = torch.cat((ftraj, z), dim = 1)
+        # predicted destination point
+        # output -> (batch_size, 2)
         generated_dest = self.decoder(decoder_input)
 
+        # prediction of trajectory points only during training only
+        # during val/test the best generated_dest is chosen
         if self.training:
-            # prediction in training, no best selection
             generated_dest_features = self.encoder_dest(generated_dest)
-            # ftraj contains history information, generated_dest_features is the latent encoding and intial_pos is the current posision of all the vehicles
-            prediction_features = torch.cat((ftraj, generated_dest_features), dim = 1)
+            prediction_features = torch.cat((ftraj, generated_dest_features, initial_pos), dim = 1)
 
             #for i in range(self.nonlocal_pools):
-                # non local social pooling
-                #prediction_features = self.non_local_social_pooling(prediction_features, mask)
+            #    prediction_features = self.non_local_social_pooling(prediction_features, mask)
 
             pred_future = self.predictor(prediction_features)
             return generated_dest, mu, logvar, pred_future
 
         return generated_dest
 
-    # separated for forward to let choose the best destination
-    def predict(self, past, generated_dest):
+    def predict(self, past: torch.Tensor, generated_dest: torch.Tensor, initial_pos: torch.Tensor) -> torch.Tensor:
+        """This function is used be test engine to predict the best destination
+        Similar computation is done in the forward function too but only for train, as during the validation best generated_dest
+        is chosen outside the function. 
+
+        Arguments:
+            past {torch.Tensor} -- Past Trajectory points -> (batch_size, No. of points * 2)
+            generated_dest {torch.Tensor} -- Generated destination by the model -> (batch_size, 2)
+            mask {torch.Tensor} -- Social Mask -> (batch_size, batch_size)
+            initial_pos {torch.Tensor} -- Initial position of the people -> (batch_size, 2)
+
+        Returns:
+            torch.Tensor -- Predicted trajectory points except the end point -> (batch_size, 2*(future_length - 1))
+        """
         ftraj = self.encoder_past(past)
         generated_dest_features = self.encoder_dest(generated_dest)
-        prediction_features = torch.cat((ftraj, generated_dest_features), dim = 1)
+        prediction_features = torch.cat((ftraj, generated_dest_features, initial_pos), dim = 1)
 
-        # for i in range(self.nonlocal_pools):
-        #     # non local social pooling
-        #     prediction_features = self.non_local_social_pooling(prediction_features, mask)
+        # MASK NOT REQUIRED FOR ETH UCY DATASET
+        #for i in range(self.nonlocal_pools):
+        #    prediction_features = self.non_local_social_pooling(prediction_features, mask)
 
         interpolated_future = self.predictor(prediction_features)
         return interpolated_future

@@ -9,7 +9,19 @@ from torch.utils import data
 import random
 import numpy as np
 
-'''for sanity check'''
+def set_seed(seed):
+    """Set seed"""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+    os.environ["PYTHONHASHSEED"] = str(seed)
+
+"""for sanity check"""
 def naive_social(p1_key, p2_key, all_data_dict):
 	if abs(p1_key-p2_key)<4:
 		return True
@@ -17,7 +29,7 @@ def naive_social(p1_key, p2_key, all_data_dict):
 		return False
 
 def find_min_time(t1, t2):
-	'''given two time frame arrays, find then min dist (time)'''
+	"""given two time frame arrays, find then min dist (time)"""
 	min_d = 9e4
 	t1, t2 = t1[:8], t2[:8]
 
@@ -32,12 +44,12 @@ def find_min_time(t1, t2):
 	return min_d
 
 def find_min_dist(p1x, p1y, p2x, p2y):
-	'''given two time frame arrays, find then min dist'''
+	"""given two time frame arrays, find then min dist"""
 	min_d = 9e4
 	p1x, p1y = p1x[:8], p1y[:8]
 	p2x, p2y = p2x[:8], p2y[:8]
 
-	for i in range(len(p2x)):
+	for i in range(len(p1x)):
 		for j in range(len(p1x)):
 			if ((p2x[i]-p1x[j])**2 + (p2y[i]-p1y[j])**2)**0.5 < min_d:
 				min_d = ((p2x[i]-p1x[j])**2 + (p2y[i]-p1y[j])**2)**0.5
@@ -46,11 +58,10 @@ def find_min_dist(p1x, p1y, p2x, p2y):
 
 def social_and_temporal_filter(p1_key, p2_key, all_data_dict, time_thresh=48, dist_tresh=100):
 	p1_traj, p2_traj = np.array(all_data_dict[p1_key]), np.array(all_data_dict[p2_key])
-	p1_time, p2_time = p1_traj[:,0], p2_traj[:,0]
-	p1_x, p2_x = p1_traj[:,1], p2_traj[:,1]
-	p1_y, p2_y = p1_traj[:,2], p2_traj[:,2]
-	if len(p2_traj) < 16 :
-		return False
+	p1_time, p2_time = p1_traj[:,1], p2_traj[:,1]
+	p1_x, p2_x = p1_traj[:,2], p2_traj[:,2]
+	p1_y, p2_y = p1_traj[:,3], p2_traj[:,3]
+
 	if find_min_time(p1_time, p2_time)>time_thresh:
 		return False
 	if find_min_dist(p1_x, p1_y, p2_x, p2_y)>dist_tresh:
@@ -163,27 +174,27 @@ def generate_pooled_data(b_size, t_tresh, d_tresh, train=True, scene=None, verbo
 def initial_pos(traj_batches):
 	batches = []
 	for b in traj_batches:
-		b = np.array(b)
-		starting_pos = b[:,7,1:].copy()/1000 #starting pos is end of past, start of future. scaled down.
-		
-		batches.append(np.array(starting_pos))
+		starting_pos = b[:,7,:].copy()/1000 #starting pos is end of past, start of future. scaled down.
+		batches.append(starting_pos)
 
 	return batches
 
-def calculate_loss(x, reconstructed_x, mean, log_var, criterion, future, interpolated_future):
-	# reconstruction loss
-	RCL_dest = criterion(x, reconstructed_x)
+def calculate_loss(criterion, x: torch.Tensor, reconstructed_x: torch.Tensor, mean: torch.Tensor, log_var: torch.Tensor, future: torch.Tensor, interpolated_future: torch.Tensor):
+	batch_loss_dict = {}
 
-	ADL_traj = criterion(future, interpolated_future) # better with l2 loss
+	# Averate Endpoint Loss
+	batch_loss_dict["ael"] = criterion(x, reconstructed_x)
+	# Average Trajectory Loss
+	batch_loss_dict["atl"] = criterion(future, interpolated_future)
+	# KL Divergence Loss
+	batch_loss_dict["kld"] = -0.5 * torch.sum(1 + log_var - mean.pow(2) - log_var.exp())
 
-	# kl divergence loss
-	KLD = -0.5 * torch.sum(1 + log_var - mean.pow(2) - log_var.exp())
-
-	return RCL_dest, KLD, ADL_traj
+	return batch_loss_dict
 
 class SocialDataset(data.Dataset):
-
-	def __init__(self, set_name="train", b_size=4096, t_tresh=60, d_tresh=50, scene=None, id=True, verbose=True):
+	def __init__(self, set_name="train", b_size=4096, t_tresh=60, d_tresh=50, scene=None, id=False, verbose=True):
+		"Initialization"
+		def __init__(self, set_name="train", b_size=4096, t_tresh=60, d_tresh=50, scene=None, id=True, verbose=True):
 		'Initialization'
 		load_name = "../social_pool_data/{0}_{1}{2}_{3}_{4}.pickle".format(set_name, 'all_' if scene is None else scene[:-2] + scene[-1] + '_', b_size, t_tresh, d_tresh)
 		print(load_name)
@@ -195,12 +206,11 @@ class SocialDataset(data.Dataset):
 		return len(self.data)	
 
 	def __getitem__(self, idx):
-		return self.data[idx]	
-		
+		return self.data[idx]
 
 """
-We've provided pickle files, but to generate new files for different datasets or thresholds, please use a command like so:
+We"ve provided pickle files, but to generate new files for different datasets or thresholds, please use a command like so:
 Parameter1: batchsize, Parameter2: time_thresh, Param3: dist_thresh
 """
 
-#generate_pooled_data(32,0,25, train=True, verbose=True)
+# generate_pooled_data(512,0,25, train=True, verbose=True, root_path="./")
