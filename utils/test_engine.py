@@ -2,6 +2,8 @@ import torch
 import numpy as np
 
 from collections import defaultdict
+from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader
 
 def test_engine(test_dataset, model, device, hyperparams: dict, best_of_n: int = 1) -> dict:
 	"""[summary]
@@ -21,25 +23,24 @@ def test_engine(test_dataset, model, device, hyperparams: dict, best_of_n: int =
 	model.eval()
 	assert best_of_n >= 1 and type(best_of_n) == int
 	error_dict = defaultdict(lambda: 0)
-	dataloader = data.DataLoader(
+	dataloader = DataLoader(
 			test_dataset, batch_size=128, shuffle=True, num_workers=0)
 	
 	with torch.no_grad():
 		for i, traj in enumerate(dataloader):	
 			traj = torch.DoubleTensor(traj).to(device)
-			initial_pos = torch.DoubleTensor(initial_pos).to(device)
-
-			past_traj = traj[:, :hyperparams["past_length"], :]
-			future_traj = traj[:, hyperparams["past_length"]:, :]
+			traj = traj - traj[:,:1,:]
+			past_traj = traj[:, :hyperparams["past_length"], 1:]
+			future_traj = traj[:, hyperparams["past_length"]:, 1:]
 			future_traj = future_traj.cpu().numpy()
 
-			past_traj = past_traj.view(-1, past_traj.shape[1]*past_traj.shape[2]).to(device)
+			past_traj = past_traj.contiguous().view(-1, past_traj.shape[1]*past_traj.shape[2]).to(device)
 			dest = future_traj[:, -1, :]
 
 			all_fde = []
 			all_guesses = []
 			for _ in range(best_of_n):
-				pred_dest = model.forward(past_traj, initial_pos, device=device)
+				pred_dest = model.forward(past_traj, device=device)
 				pred_dest = pred_dest.cpu().numpy()
 				all_guesses.append(pred_dest)
 
@@ -61,7 +62,7 @@ def test_engine(test_dataset, model, device, hyperparams: dict, best_of_n: int =
 			best_guess_dest = torch.DoubleTensor(best_guess_dest).to(device)
 
 			# using the best guess for interpolation
-			interpolated_future = model.predict(past_traj, best_guess_dest, initial_pos)
+			interpolated_future = model.predict(past_traj, best_guess_dest)
 
 			# average displacement error
 			interpolated_future = interpolated_future.cpu().numpy()

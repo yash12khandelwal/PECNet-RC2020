@@ -5,7 +5,7 @@ dec_size:
 - 1024
 - 512
 - 1024
-dist_thresh: 100
+dist_thresh: 25
 enc_dest_size:
 - 8
 - 16
@@ -45,7 +45,7 @@ predictor_hidden_size:
 - 512
 - 256
 sigma: 1.3
-test_b_size: 4096
+test_b_size: 64
 time_thresh: 0
-train_b_size: 512
+train_b_size: 64
 zdim: 16

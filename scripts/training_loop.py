@@ -1,5 +1,5 @@
 import sys
-sys.path.append("../")
+sys.path.append("./")
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -39,7 +39,7 @@ if __name__ == "__main__":
 	print(f"Using {device} device")
 
 	# load hyperparams from config file and update the dict
-	with open("../config/" + args.config_filename, "r") as file:
+	with open("./config/" + args.config_filename, "r") as file:
 		try:
 			hyperparams = yaml.load(file, Loader = yaml.FullLoader)
 		except:
@@ -63,12 +63,12 @@ if __name__ == "__main__":
 	test_dataset = SocialDataset(set_name="test", b_size=hyperparams["test_b_size"], t_tresh=hyperparams["time_thresh"], d_tresh=hyperparams["dist_thresh"], verbose=args.verbose)
 
 	# shift origin and scale data
-	for traj in train_dataset.trajectory_batches:
-		traj -= traj[:, :1, :]
-		traj *= hyperparams["data_scale"]
-	for traj in test_dataset.trajectory_batches:
-		traj -= traj[:, :1, :]
-		traj *= hyperparams["data_scale"]
+	#for traj in train_dataset.data:
+	#	traj -= traj[:, :1, :]
+	#	traj *= hyperparams["data_scale"]
+	#for traj in test_dataset.data:
+	#	traj -= traj[:, :1, :]
+	#	traj *= hyperparams["data_scale"]
 
 	best_ade = 50 # start saving after this threshold
 	best_fde = 50
@@ -83,7 +83,7 @@ if __name__ == "__main__":
 			best_ade = test_error_dict["ade"]
 			best_metrics["best_ade"] = (best_ade, e)
 			if best_ade < 10.25:
-				save_path = "../saved_models/" + args.version + ".pt"
+				save_path = "./saved_models/" + args.version + ".pt"
 				torch.save({
 							"hyperparams": hyperparams,
 							"model_state_dict": model.state_dict(),

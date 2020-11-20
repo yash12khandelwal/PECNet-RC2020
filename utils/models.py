@@ -117,7 +117,7 @@ class PECNet(nn.Module):
         self.non_local_g = MLP(input_dim = 2*fdim + 2, output_dim = 2*fdim + 2, hidden_size=non_local_g_size)
 
         # This layer is used to make the final trajectory points prediction except the final point (which is already predicted)
-        self.predictor = MLP(input_dim = 2*fdim + 2, output_dim = 2*(future_length-1), hidden_size=predictor_size)
+        self.predictor = MLP(input_dim = 2*fdim, output_dim = 2*(future_length-1), hidden_size=predictor_size)
 
         architecture = lambda net: [l.in_features for l in net.layers] + [net.layers[-1].out_features]
 
@@ -155,7 +155,7 @@ class PECNet(nn.Module):
         return pooled_f + feat
 
     #def forward(self, x: torch.Tensor, initial_pos: torch.Tensor, dest: torch.Tensor = None, mask: torch.Tensor = None, device=torch.device("cpu")) -> tuple:
-    def forward(self, x: torch.Tensor, initial_pos: torch.Tensor, dest: torch.Tensor = None, device=torch.device("cpu")) -> tuple:
+    def forward(self, x: torch.Tensor, dest: torch.Tensor = None, device=torch.device("cpu")) -> tuple:
         """Forward function of the PECNet model.
         This function gets called to do the forward pass through the network.
 
@@ -175,7 +175,7 @@ class PECNet(nn.Module):
         # if model is in training mode, dest & mask should not be None
         # if model is in validation mode, dest & mask should be None
         assert self.training ^ (dest is None)
-        assert self.training ^ (mask is None)
+        #assert self.training ^ (mask is None)
 
         # encode the past trajectory
         # output -> (batch_size, fdim)
@@ -214,7 +214,7 @@ class PECNet(nn.Module):
         # during val/test the best generated_dest is chosen
         if self.training:
             generated_dest_features = self.encoder_dest(generated_dest)
-            prediction_features = torch.cat((ftraj, generated_dest_features, initial_pos), dim = 1)
+            prediction_features = torch.cat((ftraj, generated_dest_features), dim = 1)
 
             #for i in range(self.nonlocal_pools):
             #    prediction_features = self.non_local_social_pooling(prediction_features, mask)
@@ -224,7 +224,7 @@ class PECNet(nn.Module):
 
         return generated_dest
 
-    def predict(self, past: torch.Tensor, generated_dest: torch.Tensor, initial_pos: torch.Tensor) -> torch.Tensor:
+    def predict(self, past: torch.Tensor, generated_dest: torch.Tensor) -> torch.Tensor:
         """This function is used be test engine to predict the best destination
         Similar computation is done in the forward function too but only for train, as during the validation best generated_dest
         is chosen outside the function. 
@@ -240,7 +240,7 @@ class PECNet(nn.Module):
         """
         ftraj = self.encoder_past(past)
         generated_dest_features = self.encoder_dest(generated_dest)
-        prediction_features = torch.cat((ftraj, generated_dest_features, initial_pos), dim = 1)
+        prediction_features = torch.cat((ftraj, generated_dest_features), dim = 1)
 
         # MASK NOT REQUIRED FOR ETH UCY DATASET
         #for i in range(self.nonlocal_pools):

@@ -84,7 +84,7 @@ def collect_data(set_name, dataset_type = 'image', batch_size=32, time_thresh=48
 		root_path/trajnet_image/test/scene_name.txt
 	'''
 
-	rel_path = './ETH/{0}/'.format(set_name)
+	rel_path = './utils/ETH/{0}/'.format(set_name)
 
 	full_dataset = []
 	full_masks = []
@@ -160,16 +160,16 @@ def generate_pooled_data(b_size, t_tresh, d_tresh, train=True, scene=None, verbo
 	if train:
 		full_train= collect_data("train", batch_size=32, time_thresh=t_tresh, dist_tresh=d_tresh, scene=scene, verbose=verbose)
 		print(full_train.shape)
-		train_name = "../social_pool_data/train_{0}_{1}_{2}_{3}.pickle".format('all' if scene is None else scene[:-2] + scene[-1], b_size, t_tresh, d_tresh)
+		train_name = "./social_pool_data/train_{0}_{1}_{2}_{3}.pickle".format('all' if scene is None else scene[:-2] + scene[-1], b_size, t_tresh, d_tresh)
 		with open(train_name, 'wb') as f:
 			pickle.dump(full_train, f)
 
 	if not train:
-		full_train= collect_data("train", batch_size=32, time_thresh=t_tresh, dist_tresh=d_tresh, scene=scene, verbose=verbose)
-		print(full_train.shape)
-		train_name = "../social_pool_data/test_{0}_{1}_{2}_{3}.pickle".format('all' if scene is None else scene[:-2] + scene[-1], b_size, t_tresh, d_tresh)
-		with open(train_name, 'wb') as f:
-			pickle.dump(full_train, f)
+		full_test= collect_data("test", batch_size=32, time_thresh=t_tresh, dist_tresh=d_tresh, scene=scene, verbose=verbose)
+		print(full_test.shape)
+		test_name = "./social_pool_data/test_{0}_{1}_{2}_{3}.pickle".format('all' if scene is None else scene[:-2] + scene[-1], b_size, t_tresh, d_tresh)
+		with open(test_name, 'wb') as f:
+			pickle.dump(full_test, f)
 
 def initial_pos(traj_batches):
 	batches = []
@@ -193,10 +193,7 @@ def calculate_loss(criterion, x: torch.Tensor, reconstructed_x: torch.Tensor, me
 
 class SocialDataset(data.Dataset):
 	def __init__(self, set_name="train", b_size=4096, t_tresh=60, d_tresh=50, scene=None, id=False, verbose=True):
-		"Initialization"
-		def __init__(self, set_name="train", b_size=4096, t_tresh=60, d_tresh=50, scene=None, id=True, verbose=True):
-		'Initialization'
-		load_name = "../social_pool_data/{0}_{1}{2}_{3}_{4}.pickle".format(set_name, 'all_' if scene is None else scene[:-2] + scene[-1] + '_', b_size, t_tresh, d_tresh)
+		load_name = "./social_pool_data/{0}_{1}{2}_{3}_{4}.pickle".format(set_name, 'all_' if scene is None else scene[:-2] + scene[-1] + '_', b_size, t_tresh, d_tresh)
 		print(load_name)
 		with open(load_name, 'rb') as f:
 			self.data = np.array(pickle.load(f))
@@ -213,4 +210,4 @@ We"ve provided pickle files, but to generate new files for different datasets or
 Parameter1: batchsize, Parameter2: time_thresh, Param3: dist_thresh
 """
 
-# generate_pooled_data(512,0,25, train=True, verbose=True, root_path="./")
+generate_pooled_data(64,0,25, train=False, verbose=True)

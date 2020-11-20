@@ -3,6 +3,7 @@ import torch.nn as nn
 from collections import defaultdict
 
 from utils.social_utils import calculate_loss
+from torch.utils.data import DataLoader
 
 def train_engine(train_dataset, model, device, hyperparams: dict, optimizer) -> dict:
 	"""General training function
@@ -24,21 +25,23 @@ def train_engine(train_dataset, model, device, hyperparams: dict, optimizer) -> 
 	model.train()
 	loss_dict = defaultdict(lambda : 0)
 	criterion = nn.MSELoss()
-	dataloader = data.DataLoader(
+	dataloader = DataLoader(
 			train_dataset, batch_size=128, shuffle=True, num_workers=0)
 	for i, traj in enumerate(dataloader):
 		traj = torch.DoubleTensor(traj).to(device)
 		traj = traj - traj[:,:1,:]
-		x = traj[:, :hyper_params['past_length'], 1:]
-		y = traj[:, hyper_params['past_length']:, 1:]
+		x = traj[:, :hyperparams['past_length'], 1:]
+		gt_future = traj[:, hyperparams['past_length']:, 1:]
 		x = x.contiguous().view(-1, x.shape[1]*x.shape[2]) # (x,y,x,y ... )
 		x = x.to(device)
-		dest = y[:, -1, :].to(device)
-		future = y[:, :-1, :].contiguous().view(y.size(0),-1).to(device)
+		dest = gt_future[:, -1, :].to(device)
+		future = gt_future[:, :-1, :].contiguous().view(gt_future.size(0),-1).to(device)
 		
-		dest_recon, mu, var, interpolated_future = model.forward(x, dest=dest, device=device)
+		pred_dest, mu, var, interpolated_future = model.forward(x, dest=dest, device=device)
 		optimizer.zero_grad()
-		batch_loss_dict = calculate_loss(criterion, dest, pred_dest, mu, var, gt_future, interpolated_future)
+		#print(gt_future.shape)
+		#print(interpolated_future.shape)
+		batch_loss_dict = calculate_loss(criterion, dest, pred_dest, mu, var, future, interpolated_future)
 		loss = batch_loss_dict["ael"] + batch_loss_dict["kld"]*hyperparams["kld_reg"] + batch_loss_dict["atl"]*hyperparams["adl_reg"]
 		loss.backward()
 
