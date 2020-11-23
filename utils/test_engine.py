@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 
+import matplotlib.pyplot as plt
 from collections import defaultdict
 
 def test_engine(test_dataset, model, device, hyperparams: dict, best_of_n: int = 1) -> dict:
@@ -30,6 +31,7 @@ def test_engine(test_dataset, model, device, hyperparams: dict, best_of_n: int =
 			initial_pos = torch.DoubleTensor(initial_pos).to(device)
 
 			past_traj = traj[:, :hyperparams["past_length"], :]
+			past_traj_original_shape = past_traj.clone().cpu().numpy()
 			future_traj = traj[:, hyperparams["past_length"]:, :]
 			future_traj = future_traj.cpu().numpy()
 
@@ -68,6 +70,20 @@ def test_engine(test_dataset, model, device, hyperparams: dict, best_of_n: int =
 			best_guess_dest = best_guess_dest.cpu().numpy()
 			predicted_future = np.concatenate((interpolated_future, best_guess_dest), axis = 1)
 			predicted_future = np.reshape(predicted_future, (-1, hyperparams["future_length"], 2))
+			print(predicted_future[0], future_traj[0], past_traj_original_shape[0])
+			fig = plt.figure()
+			plt.scatter(predicted_future[23][:, 0], predicted_future[23][:, 1], label='predicted_future')
+			plt.scatter(future_traj[23][:, 0], future_traj[23][:, 1], label='ground_truth_future')
+			plt.scatter(past_traj_original_shape[23][:, 0], past_traj_original_shape[23][:, 1], label='past')
+			plt.legend()
+			plt.savefig('a.png')
+			fig = plt.figure()
+			plt.scatter(predicted_future[21][:, 0], predicted_future[21][:, 1], label='predicted_future')
+			plt.scatter(future_traj[21][:, 0], future_traj[21][:, 1], label='ground_truth_future')
+			plt.scatter(past_traj_original_shape[21][:, 0], past_traj_original_shape[21][:, 1], label='past')
+			plt.legend()
+			plt.savefig('b.png')
+			exit()
 			ade = np.mean(np.linalg.norm(future_traj - predicted_future, axis = 2))
 
 			error_dict["ade"] += ade /hyperparams["data_scale"]
