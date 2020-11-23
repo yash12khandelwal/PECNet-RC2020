@@ -1,3 +1,5 @@
+predictor_emb_size: 16
+past_embedding_size: 16
 adl_reg: 1
 data_scale: 1.86
 dataset_type: image
@@ -5,7 +7,7 @@ dec_size:
 - 1024
 - 512
 - 1024
-dist_thresh: 100
+dist_thresh: 25
 enc_dest_size:
 - 8
 - 16

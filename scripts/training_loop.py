@@ -10,7 +10,7 @@ import numpy as np
 from torch.utils.data import DataLoader
 
 from utils.models import PECNet
-from utils.social_utils import SocialDataset, set_seed
+from utils.social_utils import SocialDataset, ETHDataset, set_seed
 from utils.train_engine import train_engine
 from utils.test_engine import test_engine
 from visualization.wandb_utils import init_wandb, log_losses, save_model_wandb, log_metrics, log_summary
@@ -25,10 +25,11 @@ if __name__ == "__main__":
 	parser.add_argument("--verbose", action="store_true")
 	parser.add_argument("-s", "--seed", default=42, help="Random seed")
 	parser.add_argument("-w", "--wandb", action="store_true", help="Log to wandb or not")
+	parser.add_argument("-d", "--dataset", default="drone", help="The datset to train the model on (ETH_UCY or drone)")
 	args = parser.parse_args()
 
 	# setting seed system wide for proper reproducibility
-	set_seed(args.seed)
+	set_seed(int(args.seed))
 	
 	torch.set_default_dtype(torch.float64)
 	
@@ -48,7 +49,7 @@ if __name__ == "__main__":
 	print(hyperparams)
 
 	# initialize model
-	model = PECNet(hyperparams["enc_past_size"], hyperparams["enc_dest_size"], hyperparams["enc_latent_size"], hyperparams["dec_size"], hyperparams["predictor_hidden_size"], hyperparams["non_local_theta_size"], hyperparams["non_local_phi_size"], hyperparams["non_local_g_size"], hyperparams["fdim"], hyperparams["zdim"], hyperparams["nonlocal_pools"], hyperparams["non_local_dim"], hyperparams["sigma"], hyperparams["past_length"], hyperparams["future_length"], args.verbose)
+	model = PECNet(args.dataset, hyperparams["enc_past_size"], hyperparams["enc_dest_size"], hyperparams["enc_latent_size"], hyperparams["dec_size"], hyperparams["predictor_hidden_size"], hyperparams["non_local_theta_size"], hyperparams["non_local_phi_size"], hyperparams["non_local_g_size"], hyperparams["fdim"], hyperparams["zdim"], hyperparams["nonlocal_pools"], hyperparams["non_local_dim"], hyperparams["sigma"], hyperparams["past_length"], hyperparams["future_length"], args.verbose)
 	model = model.double().to(device)
 
 	# initailize wandb, save the gradients and model information to wandb
@@ -59,25 +60,30 @@ if __name__ == "__main__":
 	optimizer = optim.Adam(model.parameters(), lr=hyperparams["learning_rate"])
 
 	# initialize dataloaders
-	train_dataset = SocialDataset(set_name="train", b_size=hyperparams["train_b_size"], t_tresh=hyperparams["time_thresh"], d_tresh=hyperparams["dist_thresh"], verbose=args.verbose)
-	test_dataset = SocialDataset(set_name="test", b_size=hyperparams["test_b_size"], t_tresh=hyperparams["time_thresh"], d_tresh=hyperparams["dist_thresh"], verbose=args.verbose)
+	if args.dataset == "drone":
+		train_dataset = SocialDataset(set_name="train", b_size=hyperparams["train_b_size"], t_tresh=hyperparams["time_thresh"], d_tresh=hyperparams["dist_thresh"], verbose=args.verbose)
+		test_dataset = SocialDataset(set_name="test", b_size=hyperparams["test_b_size"], t_tresh=hyperparams["time_thresh"], d_tresh=hyperparams["dist_thresh"], verbose=args.verbose)
+		# shift origin and scale data
+		for traj in train_dataset.trajectory_batches:
+			traj -= traj[:, hyperparams["past_length"]:hyperparams["past_length"]+1, :]
+			traj *= hyperparams["data_scale"]
+		for traj in test_dataset.trajectory_batches:
+			traj -= traj[:, hyperparams["past_length"]:hyperparams["past_length"]+1, :]
+			traj *= hyperparams["data_scale"]
 
-	# shift origin and scale data
-	for traj in train_dataset.trajectory_batches:
-		traj -= traj[:, :1, :]
-		traj *= hyperparams["data_scale"]
-	for traj in test_dataset.trajectory_batches:
-		traj -= traj[:, :1, :]
-		traj *= hyperparams["data_scale"]
-
+	else:
+		train_dataset = ETHDataset(set_name="train", b_size=hyperparams["train_b_size"], t_tresh=hyperparams["time_thresh"], d_tresh=hyperparams["dist_thresh"], verbose=args.verbose)
+		test_dataset = ETHDataset(set_name="test", b_size=hyperparams["test_b_size"], t_tresh=hyperparams["time_thresh"], d_tresh=hyperparams["dist_thresh"], verbose=args.verbose)
+	
+	
 	best_ade = 50 # start saving after this threshold
 	best_fde = 50
 	best_metrics = {}
 	N = hyperparams["n_values"]
 
 	for e in range(hyperparams["num_epochs"]):
-		train_loss_dict = train_engine(train_dataset, model, device, hyperparams, optimizer)
-		test_error_dict = test_engine(test_dataset, model, device, hyperparams, best_of_n = N)
+		train_loss_dict = train_engine(args.dataset, train_dataset, model, device, hyperparams, optimizer)
+		test_error_dict = test_engine(args.dataset, test_dataset, model, device, hyperparams, best_of_n = N)
 
 		if test_error_dict["ade"] < best_ade:
 			best_ade = test_error_dict["ade"]
