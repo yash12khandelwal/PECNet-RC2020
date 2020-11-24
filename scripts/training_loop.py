@@ -76,8 +76,8 @@ if __name__ == "__main__":
 	N = hyperparams["n_values"]
 
 	for e in range(hyperparams["num_epochs"]):
-		train_loss_dict = train_engine(train_dataset, model, device, hyperparams, optimizer)
-		test_error_dict = test_engine(test_dataset, model, device, hyperparams, best_of_n = N)
+		# train_loss_dict = train_engine(train_dataset, model, device, hyperparams, optimizer, args.wandb)
+		test_error_dict = test_engine(test_dataset, model, device, hyperparams, args.wandb, best_of_n = N)
 
 		if test_error_dict["ade"] < best_ade:
 			best_ade = test_error_dict["ade"]
