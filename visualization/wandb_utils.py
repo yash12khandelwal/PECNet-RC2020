@@ -8,7 +8,7 @@ def init_wandb(cfg: dict, model, args=None) -> None:
     """
     wandb.init(
         name=args.version,
-        project="Trajectory Prediction",
+        project="trajectory-prediction",
         config=cfg,
         dir="~/",
     )
