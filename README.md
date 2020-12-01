@@ -93,22 +93,22 @@ Reproduce the following experiment results using the given specific instructions
 
 ## Drone/ETH/UNIV/ZARA1/ZARA2/HOTEL results (Table 1 and 2)
 Run run_experiment.py with the dataset argument set to the corresponding dataset (drone, eth, hotel, zara1 or zara2). Use the -S option to not use social pooling and -TT option to not use truncation trick. For eg to reproduce results for drone dataset without social pooling and truncation trick, run the following command from scripts directory :-
-'''bash
+```bash
 python run_experiment.py --experiment default --dataset drone -S -TT
-'''
+```
 
 ## K_variation results
 Execute the following command to get results on drone dataset for some value of k, use -TT if required to not use truncation trick
-'''bash
+```bash
 python run_experiment.py --experiment k_variation --dataset drone -k <k value> <-TT>
-'''
+```
 
 ## Waypoint conditioning and oracle results
 Execute the following command with waypoint_no between 1 and 11 to get results for waypoint conditioning error without oracle
-'''bash
+```bash
 python run_experiment.py --experiment waypoint_conditioning --dataset drone -n <Conditioned waypoint no.>
-'''
+```
 Execute the following command to get the results with oracle
-'''bash
+```bash
 python run_experiment.py --experiment waypoint_conditioning_oracle --dataset drone -n <Conditioned waypoint no.>
-'''
+```
