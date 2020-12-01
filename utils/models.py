@@ -178,7 +178,7 @@ class PECNet(nn.Module):
 
         # encode the past trajectory
         # output -> (batch_size, fdim)
-        ftraj = self.encoder_past(x)
+        ftraj = self.encoder_past(x)  #initially x, now put as initial_pos (1), dimension mismatch
 
         # if training, then use the ground truth destination position to encode them and then concatenate with ftraj to get the latent features
         # using the VAE Reparametrization trick, get the z vector
@@ -190,7 +190,7 @@ class PECNet(nn.Module):
         else:
             # encode the ground truth destination positions to get dest_features
             # output -> (batch_size, fdim)
-            dest_features = self.encoder_dest(dest)
+            dest_features = self.encoder_dest(dest)  #changed to initial_pos, was dest earlier (2)
             features = torch.cat((ftraj, dest_features), dim = 1)
             latent =  self.encoder_latent(features)
 
@@ -207,12 +207,12 @@ class PECNet(nn.Module):
         decoder_input = torch.cat((ftraj, z), dim = 1)
         # predicted destination point
         # output -> (batch_size, 2)
-        generated_dest = self.decoder(decoder_input)
+        generated_dest = self.decoder(decoder_input)  #=dest (3) self.decoder(decoder_input)
 
         # prediction of trajectory points only during training only
         # during val/test the best generated_dest is chosen
         if self.training:
-            generated_dest_features = self.encoder_dest(generated_dest)
+            generated_dest_features = self.encoder_dest(generated_dest) #dest, was generated_dest(4)
             prediction_features = torch.cat((ftraj, generated_dest_features, initial_pos), dim = 1)
 
             for i in range(self.nonlocal_pools):
