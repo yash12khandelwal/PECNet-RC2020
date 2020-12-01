@@ -20,12 +20,13 @@ if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description="PECNet")
 	parser.add_argument("--num_workers", "-nw", type=int, default=0)
 	parser.add_argument("--gpu_index", "-gi", type=int, default=0)
-	parser.add_argument("--config_filename", "-cfn", type=str, default="optimal.yaml")
+	parser.add_argument("--config_filename", "-cfn", type=str, default="optimal_drone.yaml")
 	parser.add_argument("--version", "-v", type=str, default="PECNET_social_model")
 	parser.add_argument("--verbose", action="store_true")
 	parser.add_argument("-s", "--seed", default=42, help="Random seed")
 	parser.add_argument("-w", "--wandb", action="store_true", help="Log to wandb or not")
 	parser.add_argument("-d", "--dataset", default="drone", help="The datset to train the model on (ETH_UCY or drone)")
+	parser.add_argument("-e", "--experiment", default="none", help="Which experiment to perform : none (To train the model as per cfg), default, k_variation, waypoint_conditioning, waypoint_conditioning_oracle")
 	args = parser.parse_args()
 
 	# setting seed system wide for proper reproducibility

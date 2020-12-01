@@ -156,18 +156,18 @@ def collect_data(set_name, dataset_type = 'image', batch_size=32, time_thresh=48
 	#full_masks.append(mask_batch[0:len(current_batch),0:len(current_batch)])
 	return np.array(full_dataset,dtype=None)
 
-def generate_pooled_data(b_size, t_tresh, d_tresh, train=True, scene=None, verbose=True):
+def generate_pooled_data(b_size, t_tresh, d_tresh, train=True, scene=None, verbose=True, dataset_type = "eth"):
 	if train:
 		full_train= collect_data("train", batch_size=32, time_thresh=t_tresh, dist_tresh=d_tresh, scene=scene, verbose=verbose)
 		print(full_train.shape)
-		train_name = "../social_pool_data/train_{0}_{1}_{2}_{3}.pickle".format('all' if scene is None else scene[:-2] + scene[-1], b_size, t_tresh, d_tresh)
+		train_name = "../social_pool_data/train_{0}_{1}_{2}_{3}_{4}.pickle".format('all' if scene is None else scene[:-2] + scene[-1], b_size, t_tresh, d_tresh, dataset_type)
 		with open(train_name, 'wb') as f:
 			pickle.dump(full_train, f)
 
 	if not train:
 		full_test= collect_data("test", batch_size=32, time_thresh=t_tresh, dist_tresh=d_tresh, scene=scene, verbose=verbose)
 		print(full_test.shape)
-		test_name = "../social_pool_data/test_{0}_{1}_{2}_{3}.pickle".format('all' if scene is None else scene[:-2] + scene[-1], b_size, t_tresh, d_tresh)
+		test_name = "../social_pool_data/test_{0}_{1}_{2}_{3}_{4}.pickle".format('all' if scene is None else scene[:-2] + scene[-1], b_size, t_tresh, d_tresh, dataset_type)
 		with open(test_name, 'wb') as f:
 			pickle.dump(full_test, f)
 
@@ -195,7 +195,7 @@ class SocialDataset(data.Dataset):
 
 	def __init__(self, set_name="train", b_size=4096, t_tresh=60, d_tresh=50, scene=None, id=False, verbose=True):
 		"Initialization"
-		load_name = f"../social_pool_data/{set_name}_{'all_' if scene is None else scene[:-2] + scene[-1] + '_'}{b_size}_{t_tresh}_{d_tresh}.pickle"
+		load_name = f"../social_pool_data/{set_name}_{'all_' if scene is None else scene[:-2] + scene[-1] + '_'}{b_size}_{t_tresh}_{d_tresh}_drone.pickle"
 		print(load_name)
 		with open(load_name, "rb") as f:
 			data = pickle.load(f)
@@ -241,8 +241,8 @@ class SocialDataset(data.Dataset):
 
 
 class ETHDataset(data.Dataset):
-	def __init__(self, set_name="train", b_size=4096, t_tresh=60, d_tresh=50, scene=None, id=False, verbose=True):
-		load_name = "../social_pool_data/{0}_{1}{2}_{3}_{4}.pickle".format(set_name, 'all_' if scene is None else scene[:-2] + scene[-1] + '_', b_size, t_tresh, d_tresh)
+	def __init__(self, dataset = "eth", set_name="train", b_size=4096, t_tresh=60, d_tresh=50, scene=None, id=False, verbose=True):
+		load_name = "../social_pool_data/{0}_{1}{2}_{3}_{4}_{5}.pickle".format(set_name, 'all_' if scene is None else scene[:-2] + scene[-1] + '_', b_size, t_tresh, d_tresh, dataset)
 		print(load_name)
 		with open(load_name, 'rb') as f:
 			self.data = np.array(pickle.load(f))
@@ -258,4 +258,4 @@ We"ve provided pickle files, but to generate new files for different datasets or
 Parameter1: batchsize, Parameter2: time_thresh, Param3: dist_thresh
 """
 
-generate_pooled_data(512,0,100, train=True, verbose=True)
+# generate_pooled_data(512,0,100, train=True, verbose=True, datset_name="eth")

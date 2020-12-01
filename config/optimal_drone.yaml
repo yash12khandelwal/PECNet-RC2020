@@ -7,7 +7,7 @@ dec_size:
 - 1024
 - 512
 - 1024
-dist_thresh: 25
+dist_thresh: 100
 enc_dest_size:
 - 8
 - 16

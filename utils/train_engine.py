@@ -5,16 +5,20 @@ from collections import defaultdict
 from utils.social_utils import calculate_loss
 from torch.utils.data import DataLoader
 
-def train_engine(dataset_type, train_dataset, model, device, hyperparams: dict, optimizer) -> dict:
+def train_engine(dataset_type, train_dataset, model, device, hyperparams: dict, optimizer, experiment = "default") -> dict:
 	"""General training function
 
 	Arguments:
+		dataset_type {string} -- Dataset name from drone, eth, ucy, zara1, zara2 or univ
 		train_dataset -- Training dataset
 		model -- PECNet object
 		device -- Device to use (GPU or CPU)
 		hyperparams {dict} -- Dictionary stores all the hyperparams that are used while training
 		optimizer -- Optimizer to be used
-
+	
+	Keywoeds:
+		experiment {string} -- Experiment name from default, k_variation, waypoint_conditioning, waypoint_conditioning_oracle 
+	
 	Returns:
 		dict -- Training loss dictionary
 				4 keys -> total_train_loss - weighted sum of all the component losses for the epoch
@@ -36,7 +40,10 @@ def train_engine(dataset_type, train_dataset, model, device, hyperparams: dict, 
 			future_traj = traj[:, hyperparams["past_length"]:, :]
 
 			past_traj = past_traj.contiguous().view(-1, past_traj.shape[1]*past_traj.shape[2]).to(device)
-			dest = future_traj[:, -1, :].to(device)
+			if experiment == "waypoint_conditioning" or experiment == "waypoint_conditioning_oracle":
+				dest = future_traj[:, hyperparams['conditioned_waypoint'], :].to(device)
+			else:
+				dest = future_traj[:, -1, :].to(device)
 			gt_future = future_traj[:, :-1, :].contiguous().view(future_traj.size(0),-1).to(device)
 
 			pred_dest, mu, var, interpolated_future = model.forward(past_traj, initial_pos, dest=dest, mask=mask, device=device)

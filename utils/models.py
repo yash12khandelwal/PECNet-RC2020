@@ -64,10 +64,11 @@ class MLP(nn.Module):
 
 class PECNet(nn.Module):
 
-    def __init__(self, dataset_type, enc_past_size: list, enc_dest_size: list, enc_latent_size: list, dec_size: list, predictor_size: list, non_local_theta_size: list, non_local_phi_size: list, non_local_g_size: list, fdim: int, zdim: int, nonlocal_pools: int, non_local_dim: int, sigma: float, past_length: int, future_length: int, verbose: bool):
+    def __init__(self, experiment, dataset_type, enc_past_size: list, enc_dest_size: list, enc_latent_size: list, dec_size: list, predictor_size: list, non_local_theta_size: list, non_local_phi_size: list, non_local_g_size: list, fdim: int, zdim: int, nonlocal_pools: int, non_local_dim: int, sigma: float, past_length: int, future_length: int, verbose: bool):
         """PECNet Model Construction
         Constructed sub-modules of the PECNet model on the basis of the input dimension
         Arguments:
+            experiment {string} -- Experiment name from default, k_variation, waypoint_conditioning, waypoint_conditioning_oracle 
             dataset_type {string} -- The dataset type (ETH_UCY or drone)
             enc_past_size {list} -- Dimension of hidden layer of past trajectory encoder
             enc_dest_size {list} -- Dimension of hidden layer of destination encoder
@@ -88,6 +89,7 @@ class PECNet(nn.Module):
         """
         super(PECNet, self).__init__()
 
+        self.experiment = experiment
         self.zdim = zdim   # Dimension of the latent variable
         self.nonlocal_pools = nonlocal_pools  
         self.sigma = sigma  # For testing the latent variable is sampled as mu=0 and variance=sigma
@@ -151,7 +153,7 @@ class PECNet(nn.Module):
 
         return pooled_f + feat
 
-    def forward(self, x: torch.Tensor, initial_pos: torch.Tensor, dest: torch.Tensor = None, mask: torch.Tensor = None, device=torch.device("cpu")) -> tuple:
+    def forward(self, x: torch.Tensor, initial_pos: torch.Tensor, dest: torch.Tensor = None, mask: torch.Tensor = None, device=torch.device("cpu"), k=20) -> tuple:
         """Forward function of the PECNet model.
         This function gets called to do the forward pass through the network.
         Arguments:
@@ -161,6 +163,7 @@ class PECNet(nn.Module):
             dest {torch.Tensor} -- Ground Truth destination of the people (default: {None})
             mask {torch.Tensor} -- Social Mask (default: {None})
             device -- (default: {torch.device("cpu")})
+            k -- no of samples
         Returns:
             tuple -- If training, the tuple returns the destination point, mean, logvar, future trajectory points
                      If validation, the tuple only returns the destination point
@@ -180,7 +183,8 @@ class PECNet(nn.Module):
         if not self.training:
             z = torch.Tensor(x.size(0), self.zdim)
             z.normal_(0, self.sigma)
-
+            if k==1 :
+                z[:,:] = 0
         else:
             # encode the ground truth destination positions to get dest_features
             # output -> (batch_size, fdim)
