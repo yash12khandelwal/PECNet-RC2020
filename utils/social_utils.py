@@ -258,4 +258,4 @@ We"ve provided pickle files, but to generate new files for different datasets or
 Parameter1: batchsize, Parameter2: time_thresh, Param3: dist_thresh
 """
 
-# generate_pooled_data(512,0,100, train=True, verbose=True, datset_name="eth")
+# generate_pooled_data(512, 0, 100, train=True, verbose=True, dataset_type="eth")

@@ -28,7 +28,7 @@ if __name__ == "__main__":
 	parser.add_argument("-d", "--dataset", default="drone", help="The datset to train the model on (ETH_UCY or drone)")
 	parser.add_argument("-e", "--experiment", default="default", help="Which experiment to perform : none (To train the model as per cfg), default, k_variation, waypoint_conditioning, waypoint_conditioning_oracle")
 	parser.add_argument("-k", "--k_val", default=20, help="Valid only for k_variation experiment")
-	parser.add_argument("-T", "--truncation_trick", action="store_true", help="Use this option to not use truncation trick")
+	parser.add_argument("-TT", "--truncation_trick", action="store_true", help="Use this option to not use truncation trick")
 	parser.add_argument("-S", "--social_pooling", action="store_true", help="Use this option to not use social pooling")
 	parser.add_argument("-n", "--conditioned_waypoint", default=5, help="Valid only for waypoint_conditioning OR waypoint_conditioning_oracle experiment, value should be between 1 to 11")
 	args = parser.parse_args()
