@@ -210,7 +210,7 @@ class PECNet(nn.Module):
         # prediction of trajectory points only during training only
         # during val/test the best generated_dest is chosen
         if self.training:
-            if this.experiment == "design_choice_for_VAE":
+            if self.experiment == "design_choice_for_VAE":
                 generated_dest_features = self.encoder_dest(dest)
             else :
                 generated_dest_features = self.encoder_dest(generated_dest)

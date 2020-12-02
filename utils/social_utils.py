@@ -113,11 +113,12 @@ def collect_data(set_name, dataset_type = 'image', batch_size=32, time_thresh=48
 			print("Total People: ", len(list(data_by_id.keys())))
 		for person in data_by_id.items():
 			#print(person[1])
-			time = len(person[1])
+			data = person[1][::6]
+			time = len(data)
 			if time<20 : 
 				continue
 			for i in range(time-19):
-				full_dataset.append(np.array(person[1][i:i+20]))
+				full_dataset.append(np.array(data[i:i+20]))
 		# while len(list(data_by_id.keys()))>0:
 		# 	related_list = []
 		# 	curr_keys = list(data_by_id.keys())
@@ -258,4 +259,4 @@ We"ve provided pickle files, but to generate new files for different datasets or
 Parameter1: batchsize, Parameter2: time_thresh, Param3: dist_thresh
 """
 
-# generate_pooled_data(512, 0, 100, train=True, verbose=True, dataset_type="eth")
+#generate_pooled_data(512, 0, 100, train=True, verbose=True, dataset_type="zara2")
