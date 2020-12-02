@@ -112,3 +112,9 @@ Execute the following command to get the results with oracle
 ```bash
 python run_experiment.py --experiment waypoint_conditioning_oracle --dataset drone -n <Conditioned waypoint no.>
 ```
+
+## Design choice for VAE experiment results
+Execute the following command :-
+```bash
+python run_experiment.py --experiment design_choice_for_VAE
+```
