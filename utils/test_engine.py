@@ -178,9 +178,9 @@ def test_engine(dataset_type, test_dataset, model, device, hyperparams: dict, be
 				predicted_future = np.reshape(predicted_future, (-1, hyperparams["future_length"], 2))
 				ade = np.mean(np.linalg.norm(future_traj - predicted_future, axis = 2))
 
-				error_dict["ade"] += ade /hyperparams["data_scale"]
-				error_dict["fde"] += avg_min_fde / hyperparams["data_scale"]
-				error_dict["fde_avg"] = fde / hyperparams["data_scale"]
+				error_dict["ade"] += ade #/hyperparams["data_scale"]
+				error_dict["fde"] += avg_min_fde #/ hyperparams["data_scale"]
+				error_dict["fde_avg"] = fde #/ hyperparams["data_scale"]
 
 		for key in error_dict:
 			error_dict[key] /= (i + 1)
