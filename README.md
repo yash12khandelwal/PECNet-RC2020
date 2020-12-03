@@ -87,3 +87,34 @@ cd scripts
 python training_loop.py -cfn <config_file_name> -sf <model_save_name>
 ```
 where `config_file_name` is the name of the config file used to load the configuration parameters ending in `.yaml` and `model_save_name` is the name that is used when saving the model ending in `.pt`. You can use our optimal parameters as given by `optimal.yaml` or create your own config file by changing parameters in and running `config_gen.py` in the config folder.
+
+## Experiment Results
+Reproduce the following experiment results using the given specific instructions:-
+
+## Drone/ETH/UNIV/ZARA1/ZARA2/HOTEL results (Table 1 and 2)
+Run run_experiment.py with the dataset argument set to the corresponding dataset (drone, eth, hotel, zara1 or zara2). Use the -S option to not use social pooling and -TT option to not use truncation trick. For eg to reproduce results for drone dataset without social pooling and truncation trick, run the following command from scripts directory :-
+```bash
+python run_experiment.py --experiment default --dataset drone -S -TT
+```
+
+## K_variation results
+Execute the following command to get results on drone dataset for some value of k, use -TT if required to not use truncation trick
+```bash
+python run_experiment.py --experiment k_variation --dataset drone -k <k value> <-TT>
+```
+
+## Waypoint conditioning and oracle results
+Execute the following command with waypoint_no between 1 and 11 to get results for waypoint conditioning error without oracle
+```bash
+python run_experiment.py --experiment waypoint_conditioning --dataset drone -n <Conditioned waypoint no.>
+```
+Execute the following command to get the results with oracle
+```bash
+python run_experiment.py --experiment waypoint_conditioning_oracle --dataset drone -n <Conditioned waypoint no.>
+```
+
+## Design choice for VAE experiment results
+Execute the following command :-
+```bash
+python run_experiment.py --experiment design_choice_for_VAE
+```
