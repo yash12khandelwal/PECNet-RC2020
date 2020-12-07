@@ -123,7 +123,7 @@ python run_experiment.py --experiment design_choice_for_VAE
 Use the -vis option to save the visualised results to a separate folder
 
 ## Visualize comparision results with and without using social pooling layer
-Execute the following command :-
+Execute the following command, use the --wandb option if needed (Images will be logged to wandb):-
 ```bash
-python run_experiment.py --dataset drone -vis --experiment compare_with_without_s -S
+python run_experiment.py --dataset drone -vis --experiment compare_with_without_s --wandb
 ```
