@@ -4,17 +4,21 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 thres = 2
+initialised = False
 def init_wandb(cfg: dict, model, args=None) -> None:
     """Initialize project on Weights & Biases
     Args:
         cfg (dict): Configuration dictionary
     """
+    global initialised
+    initialised = True
     wandb.init(
         name=args.version,
         project="Trajectory Prediction",
         config=cfg,
         dir="~/",
     )
+    print(initialised)
     if args:
         wandb.config.update(args)
 
@@ -66,6 +70,7 @@ def visualize(past_traj, initial_pos, future_traj, predicted_future_traj, predic
         mask <tensor> : Social mask of size (batch_size, batch_size)
         filename <string> : File name
     """
+    global initialised
     batch_size = past_traj.shape[0]
     past_traj = np.array(past_traj)
     initial_pos = np.array(initial_pos.reshape(batch_size,1,2))
@@ -76,7 +81,7 @@ def visualize(past_traj, initial_pos, future_traj, predicted_future_traj, predic
     predicted_destinations = predicted_destinations + initial_pos.transpose((1,0,2))*1000
     if pred_future_ws is not None :
         pred_future_ws = pred_future_ws + initial_pos*1000
-
+        print(initialised)
     for i in range(batch_size):
         print(i)
         #fig = plt.figure()
@@ -88,7 +93,7 @@ def visualize(past_traj, initial_pos, future_traj, predicted_future_traj, predic
         
         print('No of people : ', len(neighbors_list))
         if len(neighbors_list) > thres :
-            filename = '../visualization/multiple/' + str(i)+'a'+str(len(neighbors_list)) + '.png'
+            filename = 'multiple/' + str(i)+'a'+str(len(neighbors_list)) + '.png'
             plt.plot(past_traj[neighbors_list,:,0].T, past_traj[neighbors_list,:,1].T, label = 'Past trajectory', color = 'b')
             #print(past_traj[neighbors_list,:,0].T)
             plt.plot(future_traj[neighbors_list,:,0].T, future_traj[neighbors_list,:,1].T, label = 'Ground truth future trajectory', color = 'g')
@@ -102,7 +107,7 @@ def visualize(past_traj, initial_pos, future_traj, predicted_future_traj, predic
             plt.legend(handles, labels, loc='best')
             #plt.legend(loc='best')
             plt.savefig(filename)
-            plt.close()
-
-
-                    
+            if initialised :
+                print(filename)
+                wandb.save(filename)
+            plt.close()       
