@@ -31,6 +31,7 @@ if __name__ == "__main__":
 	parser.add_argument("-TT", "--truncation_trick", action="store_true", help="Use this option to not use truncation trick")
 	parser.add_argument("-S", "--social_pooling", action="store_true", help="Use this option to not use social pooling")
 	parser.add_argument("-n", "--conditioned_waypoint", default=5, help="Valid only for waypoint_conditioning OR waypoint_conditioning_oracle experiment, value should be between 1 to 11")
+	parser.add_argument("-vis", "--visualize", action="store_true")
 	args = parser.parse_args()
 	args.k_val = int(args.k_val)
 	args.conditioned_waypoint = int(args.conditioned_waypoint)
@@ -57,7 +58,7 @@ if __name__ == "__main__":
 	file.close()
 	hyperparams['conditioned_waypoint'] = args.conditioned_waypoint
 	# Change params for truncation trick
-
+	hyperparams['visualize'] = args.visualize
 	# Change params if social pooling is not applicable
 	if args.social_pooling:
 		hyperparams['nonlocal_pools']=0
@@ -98,6 +99,28 @@ if __name__ == "__main__":
 		exit()
 
 
+	# Only for k_variation experiment load the pretrained model and run it
+	if args.experiment == "compare_with_without_s":
+		checkpoint = torch.load(f"../saved_models/PECNET_social_model1.pt", map_location=device)
+		model.load_state_dict(checkpoint["model_state_dict"])
+		model_ws = PECNet(args.experiment, args.dataset, hyperparams["enc_past_size"], hyperparams["enc_dest_size"], hyperparams["enc_latent_size"], hyperparams["dec_size"], hyperparams["predictor_hidden_size"], hyperparams["non_local_theta_size"], hyperparams["non_local_phi_size"], hyperparams["non_local_g_size"], hyperparams["fdim"], hyperparams["zdim"], 0, hyperparams["non_local_dim"], hyperparams["sigma"], hyperparams["past_length"], hyperparams["future_length"], args.verbose)
+		model_ws = model_ws.double().to(device)
+		checkpoint_ws = torch.load(f"../saved_models/PECNET_ws.pt", map_location=device)
+		model_ws.load_state_dict(checkpoint_ws["model_state_dict"])
+		train_dataset = SocialDataset(set_name="train", b_size=hyperparams["train_b_size"], t_tresh=hyperparams["time_thresh"], d_tresh=hyperparams["dist_thresh"], verbose=args.verbose)
+		test_dataset = SocialDataset(set_name="test", b_size=hyperparams["test_b_size"], t_tresh=hyperparams["time_thresh"], d_tresh=hyperparams["dist_thresh"], verbose=args.verbose)
+		# shift origin and scale data
+		for traj in train_dataset.trajectory_batches:
+			traj -= traj[:, 0:1, :]
+			traj *= hyperparams["data_scale"]
+		for traj in test_dataset.trajectory_batches:
+			traj -= traj[:, 0:1, :]
+			traj *= hyperparams["data_scale"]
+		test_error_dict = test_engine(args.dataset, test_dataset, model, device, hyperparams, best_of_n = hyperparams['n_values'], experiment = args.experiment, model_ws = model_ws)
+		print("Best ADE :" + str(test_error_dict['ade']))
+		print("Best FDE :" + str(test_error_dict['fde']))
+		exit()
+
 	# initialize optimizer
 	# optimizer = optim.Adam(model.parameters(), lr=hyperparams["learning_rate"])
 	optimizer = optim.Adam(model.parameters(), lr=hyperparams["learning_rate"])
@@ -108,10 +131,10 @@ if __name__ == "__main__":
 		test_dataset = SocialDataset(set_name="test", b_size=hyperparams["test_b_size"], t_tresh=hyperparams["time_thresh"], d_tresh=hyperparams["dist_thresh"], verbose=args.verbose)
 		# shift origin and scale data
 		for traj in train_dataset.trajectory_batches:
-			traj -= traj[:, hyperparams["past_length"]:hyperparams["past_length"]+1, :]
+			traj -= traj[:, :1, :]
 			traj *= hyperparams["data_scale"]
 		for traj in test_dataset.trajectory_batches:
-			traj -= traj[:, hyperparams["past_length"]:hyperparams["past_length"]+1, :]
+			traj -= traj[:, :1, :]
 			traj *= hyperparams["data_scale"]
 	else:
 		train_dataset = ETHDataset(dataset=args.dataset, set_name="train", b_size=hyperparams["train_b_size"], t_tresh=hyperparams["time_thresh"], d_tresh=hyperparams["dist_thresh"], verbose=args.verbose)
@@ -131,7 +154,7 @@ if __name__ == "__main__":
 		if test_error_dict["ade"] < best_ade:
 			best_ade = test_error_dict["ade"]
 			best_metrics["best_ade"] = (best_ade, e)
-			if best_ade < 10.25:
+			if best_ade < 14.25:
 				save_path = "../saved_models/" + args.version + ".pt"
 				torch.save({
 							"hyperparams": hyperparams,
