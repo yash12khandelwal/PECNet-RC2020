@@ -1,47 +1,7 @@
-# PECNet: Pedestrian Endpoint Conditioned Trajectory Prediction Network
+## Introduction 
+This repository is the reproducibility report of 'It Is Not the Journey but the Destination: Endpoint Conditioned Trajectory Prediction'. You can find the original code from the [repository](https://github.com/HarshayuGirase/PECNet). 
 
-This repository contains the code for the paper **[It is Not the Journey but the Destination: Endpoint Conditioned Trajectory Prediction](https://karttikeya.github.io/publication/htf/)**. 
-
-**<a href="https://arxiv.org/abs/2004.02025">It is Not the Journey but the Destination: Endpoint Conditioned Trajectory Prediction</a>**
-<br>
-<a href="https://karttikeya.github.io/">Karttikeya Mangalam</a>,
-<a href="https://www.linkedin.com/in/harshayu-girase-764b06153/">Harshayu Girase</a>,
-<a href="https://www.linkedin.com/in/shreyas-agarwal-086267146/">Shreyas Agarwal</a>,
-<a href="https://www.linkedin.com/in/kuan-hui-lee-23730370/">Kuan-Hui Lee</a>,
-<a href="https://web.stanford.edu/~eadeli/">Ehsan Adeli</a>,
-<a href="https://people.eecs.berkeley.edu/~malik/">Jitendra Malik</a>,
-<a href="https://www.linkedin.com/in/adrien-gaidon-63ab2358/">Adrien Gaidon</a>
-<br>
-Accepted to [ECCV 2020](https://eccv2020.eu/)(Oral)
-
-
-**Abstract**: Human trajectory forecasting with multiple socially interacting agents is of critical importance for autonomous navigation in human
-environments, e.g., for self-driving cars and social robots. In this work, we present Predicted Endpoint Conditioned Network (PECNet) for flexible
-human trajectory prediction. PECNet infers distant trajectory endpoints to assist in long-range multi-modal trajectory prediction. A novel nonlocal social pooling layer enables PECNet to infer diverse yet socially compliant trajectories. Additionally, we present a simple “truncation trick” for improving diversity and multi-modal trajectory prediction performance. 
-
-Below is an example of pedestrian trajectories predicted by our model and the corresponding ground truth. Each person is denoted by a different color, the past is denoted by circles, and the future is denoted by stars. The past is the same for both predictions and ground truth. The left image shows the future trajectory that our model predicts and the right image shows the ground truth future trajectory that actually occurs.
-<div align='center'>
-<img src="images/predicted.gif" style="display: inline; border-width: 0px;" width=410px></img>
-<img src="images/ground_truth.gif" style="display: inline; border-width: 0px;" width=410px></img>
-</div>
-
-If you find this code useful in your work then please cite
-```
-@inproceedings{mangalam2020pecnet,
-  title={It is Not the Journey but the Destination: Endpoint Conditioned Trajectory Prediction},
-  author={Mangalam, Karttikeya and Girase, Harshayu and Agarwal, Shreyas and Lee, Kuan-Hui and Adeli, Ehsan and Malik, Jitendra and Gaidon, Adrien},
-  booktitle = {Proceedings of the European Conference on Computer Vision (ECCV)},
-  month = {August},
-  year={2020}
-}
-```
-
-## Model
-Our model consists of two sequential steps: an endpoint prediction module and a social pooling module. The endpoint prediction module is a CVAE which models the desired end destination of a pedestrian as a representation of its past observed trajectories. The social pooling module considers the past history of all the pedestrians in the scene and their predicted endpoints from the endpoint module to predict socially compliant future trajectories.
-
-<div align='center'>
-  <img src='images/model.JPG' width='1000px'>
-</div>
+This repository is an extension which contains code for executing all the experiments as well as the additional experiment that we performed. Also, the code has been well commented and organized for easy understanding and use.
 
 ## Setup
 All code was developed and tested on Ubuntu 16.04.6 with Python 3.6.6 and PyTorch 1.4.0 with CUDA 10.0.
