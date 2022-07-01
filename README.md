@@ -52,7 +52,7 @@ where `config_file_name` is the name of the config file used to load the configu
 Reproduce the following experiment results using the given specific instructions:-
 
 ## Drone/ETH/UNIV/ZARA1/ZARA2/HOTEL results (Table 1 and 2)
-Run run_experiment.py with the dataset argument set to the corresponding dataset (drone, eth, hotel, zara1 or zara2). Use the -S option to not use social pooling and -TT option to not use truncation trick. For eg to reproduce results for drone dataset without social pooling and truncation trick, run the following command from scripts directory :-
+Run run_experiment.py with the dataset argument  set to the corresponding dataset (drone, eth, hotel, zara1 or zara2). Use the -S option to not use social pooling and -TT option to not use truncation trick. For eg to reproduce results for drone dataset without social pooling and truncation trick, run the following command from scripts directory :-
 ```bash
 python run_experiment.py --experiment default --dataset drone -S -TT
 ```
